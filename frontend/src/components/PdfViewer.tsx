@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Document, Page, pdfjs } from "react-pdf";
 import { useState, useEffect } from "react";
 
@@ -9,46 +10,43 @@ export default function PdfViewer({ url }: { url: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token"); // Sync key
+    const token = localStorage.getItem("access_token");
     let objectUrl: string | null = null;
 
     const fetchPdf = async () => {
       try {
         setError(null);
         if (!token) throw new Error("Auth token missing.");
-
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        if (!response.ok) {
-           const errData = await response.json().catch(() => ({}));
-           throw new Error(errData.msg || "Access Denied");
-        }
-
+        if (!response.ok) throw new Error("Access Denied");
         const blob = await response.blob();
         objectUrl = URL.createObjectURL(blob);
         setPdfBlob(objectUrl);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError(err.message);
       }
     };
-
     if (url) fetchPdf();
-
-    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); }; // Cleanup
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [url]);
 
-  if (error) return <div className="p-4 bg-red-100 text-red-700 rounded m-4">⚠️ {error}</div>;
-  if (!pdfBlob) return <p className="p-4 italic text-gray-500">Connecting to secure stream...</p>;
+  if (error) return <div className="p-8 text-red-500 text-center font-bold">⚠️ {error}</div>;
+  if (!pdfBlob) return <div className="p-20 text-center animate-pulse text-slate-400">Loading Secure Stream...</div>;
 
   return (
-    <div className="pdf-container bg-gray-200 p-4 rounded shadow-inner overflow-auto h-full">
-      <Document file={pdfBlob} onLoadSuccess={(d) => setPages(d.numPages)}>
+    /* We change the background to bg-slate-900 in dark mode for a better reading experience */
+    <div className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-900 p-8 flex flex-col items-center transition-colors">
+      <Document file={pdfBlob} onLoadSuccess={(d) => setPages(d.numPages)} className="flex flex-col gap-8">
         {Array.from({ length: pages }, (_, i) => (
-          <div key={i} className="mb-4 shadow-lg bg-white flex justify-center">
-            <Page pageNumber={i + 1} renderTextLayer={false} renderAnnotationLayer={false} width={700} />
+          <div key={i} className="shadow-2xl border border-slate-200 dark:border-slate-800">
+            <Page 
+              pageNumber={i + 1} 
+              renderTextLayer={false} 
+              renderAnnotationLayer={false} 
+              width={800} 
+            />
           </div>
         ))}
       </Document>

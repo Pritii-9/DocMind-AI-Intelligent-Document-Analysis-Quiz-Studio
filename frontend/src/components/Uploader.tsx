@@ -1,45 +1,30 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState } from "react";
-
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
 
 export default function Uploader() {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-
   const handleUpload = async () => {
     if (!file) return;
-
-    // IMPORTANT: Ensure this matches the key in your AuthContext exactly
     const token = localStorage.getItem("access_token"); 
-
-    if (!token) {
-      alert("No session found. Please log out and log back in.");
-      return;
-    }
+    if (!token) return alert("No session found.");
 
     setIsUploading(true);
     setProgress(0);
 
     try {
-      // 1. Initialize S3 Multipart Upload
       const initRes = await fetch("http://localhost:5000/pdf/init-upload", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": `Bearer ${token}` 
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ filename: file.name }),
       });
-      
-      if (initRes.status === 401) throw new Error("Session expired. Please re-login.");
       const { uploadId, key } = await initRes.json();
-
+      const CHUNK_SIZE = 5 * 1024 * 1024;
       const totalParts = Math.ceil(file.size / CHUNK_SIZE);
       const parts = [];
 
-      // 2. Uploading Chunks
       for (let i = 0; i < totalParts; i++) {
         const chunk = file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
         const formData = new FormData();
@@ -53,58 +38,49 @@ export default function Uploader() {
           headers: { "Authorization": `Bearer ${token}` },
           body: formData,
         });
-
-        if (!pRes.ok) throw new Error(`Chunk ${i + 1} failed. Status: ${pRes.status}`);
-        
         const pData = await pRes.json();
         parts.push({ PartNumber: i + 1, ETag: pData.etag });
-        
         setProgress(Math.round(((i + 1) / totalParts) * 100));
       }
 
-      // 3. Complete Upload
-      const compRes = await fetch("http://localhost:5000/pdf/complete-upload", {
+      await fetch("http://localhost:5000/pdf/complete-upload", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": `Bearer ${token}` 
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ key, uploadId, parts }),
       });
-
-      if (compRes.ok) {
-        alert("Secure Upload Complete!");
-        window.location.reload();
-      }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      console.error("Upload Logic Error:", err);
-      alert(err.message || "Upload failed.");
-    } finally {
-      setIsUploading(false);
-    }
+      window.location.reload();
+    } catch (err) {
+      alert("Upload failed.");
+    } finally { setIsUploading(false); }
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 shadow-sm">
-      <input 
-        type="file" 
-        accept="application/pdf"
-        className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-        onChange={(e) => setFile(e.target.files?.[0] || null)} 
-      />
+    <div className="flex flex-col gap-6">
+      <div className="relative group border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-10 bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 hover:border-blue-400 transition-all text-center">
+        <input 
+          type="file" 
+          accept="application/pdf"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          onChange={(e) => setFile(e.target.files?.[0] || null)} 
+        />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-14 h-14 bg-white dark:bg-slate-700 rounded-2xl shadow-sm dark:shadow-none flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+            {file ? "📄" : "☁️"}
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{file ? file.name : "Choose a PDF file"}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Drag and drop or click to browse</p>
+          </div>
+        </div>
+      </div>
+
       <button 
         onClick={handleUpload} 
         disabled={isUploading || !file}
-        className="bg-blue-600 text-white font-bold px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 transition-all active:scale-95"
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-100 dark:shadow-none disabled:bg-slate-200 dark:disabled:bg-slate-800 flex items-center justify-center gap-3"
       >
-        {isUploading ? `Uploading Chunks (${progress}%)` : "Start Secure Upload"}
+        {isUploading ? "Uploading (" + progress + "%)" : "Begin Secure Transfer"}
       </button>
-      {isUploading && (
-        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-          <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
-        </div>
-      )}
     </div>
   );
 }
