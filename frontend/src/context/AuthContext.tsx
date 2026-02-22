@@ -1,11 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { createContext, useContext, useState } from "react";
 import api from "../api/axios";
 
 type AuthContextType = {
   token: string | null;
+  role: string | null;
+  userName: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   verifyOtp: (email: string, otp: string) => Promise<void>;
   logout: () => void;
 };
@@ -13,19 +14,29 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>(null!);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // Use 'access_token' consistently
+  // Sync state with localStorage on initialization
   const [token, setToken] = useState(localStorage.getItem("access_token"));
+  const [role, setRole] = useState(localStorage.getItem("user_role"));
+  const [userName, setUserName] = useState(localStorage.getItem("user_name"));
 
   const login = async (email: string, password: string) => {
     const res = await api.post("/auth/login", { email, password });
-    const accessToken = res.data.access_token;
     
-    localStorage.setItem("access_token", accessToken);
-    setToken(accessToken);
+    // De-structure the new unified response fields
+    const { access_token, role, name } = res.data;
+    
+    localStorage.setItem("access_token", access_token);
+    localStorage.setItem("user_role", role);
+    localStorage.setItem("user_name", name);
+    
+    setToken(access_token);
+    setRole(role);
+    setUserName(name);
   };
 
-  const register = async (email: string, password: string) => {
-    await api.post("/auth/register", { email, password });
+  const register = async (name: string, email: string, password: string) => {
+    // Now sending 'name' to the backend for the unified signup
+    await api.post("/auth/register", { name, email, password });
   };
 
   const verifyOtp = async (email: string, otp: string) => {
@@ -33,13 +44,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("access_token");
+    localStorage.clear(); // Clears token, role, and name
     setToken(null);
-    window.location.href = "/"; // Force redirect on logout
+    setRole(null);
+    setUserName(null);
+    window.location.href = "/";
   };
 
   return (
-    <AuthContext.Provider value={{ token, login, register, verifyOtp, logout }}>
+    <AuthContext.Provider value={{ token, role, userName, login, register, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

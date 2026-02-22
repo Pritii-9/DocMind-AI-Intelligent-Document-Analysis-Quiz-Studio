@@ -1,12 +1,12 @@
 import Login from "./pages/Login";
 import Viewer from "./pages/Viewer";
+import AdminDashboard from "./pages/AdminDashboard"; 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 function AppContent() {
-  const { token } = useAuth();
+  const { token, role } = useAuth();
 
   return (
-    /* We add dark:bg-slate-950 and dark:text-white here for the login screen */
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
       {!token ? (
         <div className="flex flex-col items-center justify-center pt-20 px-4">
@@ -19,7 +19,8 @@ function AppContent() {
           <Login />
         </div>
       ) : (
-        <Viewer />
+        /* Switch dashboard based on role */
+        role === "admin" ? <AdminDashboard /> : <Viewer />
       )}
     </div>
   );

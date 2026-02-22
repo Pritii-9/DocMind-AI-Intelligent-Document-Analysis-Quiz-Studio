@@ -1,24 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import api from "../api/axios"; // Use the axios instance we updated with interceptors
+import { FileText, LayoutDashboard, LogOut, Folder, Users } from "lucide-react";
 
 export default function Sidebar({ onSelectFile, activeFile }: { onSelectFile: any, activeFile: string }) {
-  const { logout } = useAuth();
+  const { logout, role, userName } = useAuth(); // Access role and userName from unified context
   const [files, setFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchFiles = async () => {
       try {
-        const token = localStorage.getItem("access_token");
-        const response = await fetch("http://localhost:5000/pdf/list", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error("Unauthorized");
-        const data = await response.json();
-        setFiles(data);
+        // Updated to use the api instance which handles the Authorization header automatically
+        const response = await api.get("/pdf/list");
+        setFiles(response.data);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to load documents", err);
       } finally {
         setLoading(false);
       }
@@ -27,45 +25,80 @@ export default function Sidebar({ onSelectFile, activeFile }: { onSelectFile: an
   }, []);
 
   return (
-    /* Added dark:bg-black and border-slate-800 for a deep professional look */
-    <div className="w-72 bg-slate-900 dark:bg-black h-full flex flex-col text-slate-400 border-r border-slate-800 shadow-2xl transition-colors">
+    <div className="w-72 bg-slate-900 dark:bg-black h-full flex flex-col text-slate-400 border-r border-slate-800 shadow-2xl transition-all">
+      {/* Brand & Profile Section */}
       <div className="p-8">
         <div className="flex items-center gap-3 mb-8">
-           <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold">V</div>
-           <h2 className="text-xl font-bold text-white tracking-tight">Vault</h2>
+           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-900/40">V</div>
+           <h2 className="text-xl font-black text-white tracking-tighter">Vault PRO</h2>
         </div>
-        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Documents</h2>
+        
+        {/* Management Section (Only visible to Admins) */}
+        {role === "admin" && (
+          <div className="mb-8">
+            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Administration</h2>
+            <button 
+              onClick={() => window.location.href = "/"} // App.tsx handles the route switch based on state
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold mb-2 ${
+                window.location.pathname === "/" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/40" : "hover:bg-slate-800"
+              }`}
+            >
+              <LayoutDashboard size={18} />
+              Team Control
+            </button>
+          </div>
+        )}
+
+        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Your Documents</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 space-y-1">
+      {/* File List Section */}
+      <div className="flex-1 overflow-y-auto px-4 space-y-1 custom-scrollbar">
         {loading ? (
           <div className="space-y-3 px-4 animate-pulse">
-            {[1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-800/50 rounded-lg" />)}
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-slate-800/30 rounded-xl" />)}
+          </div>
+        ) : files.length === 0 ? (
+          <div className="text-center py-10">
+            <Folder className="mx-auto text-slate-700 mb-2" size={32} />
+            <p className="text-xs text-slate-600">No documents found</p>
           </div>
         ) : (
           files.map(file => (
             <button 
               key={file} 
               onClick={() => onSelectFile(file)} 
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium border border-transparent ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium border border-transparent group ${
                 activeFile === file 
                 ? "bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-900/40" 
                 : "hover:bg-slate-800 dark:hover:bg-slate-900 hover:text-slate-200"
               }`}
             >
-              <span>{activeFile === file ? "📂" : "📄"}</span>
+              <FileText className={`${activeFile === file ? "text-white" : "text-slate-500 group-hover:text-blue-400"}`} size={18} />
               <span className="truncate">{file}</span>
             </button>
           ))
         )}
       </div>
 
-      <div className="p-6 border-t border-slate-800">
+      {/* Footer / User Info Section */}
+      <div className="p-6 border-t border-slate-800 bg-slate-900/50">
+        <div className="flex items-center gap-3 mb-6 px-2">
+          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white border border-slate-600">
+            {userName?.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-bold text-slate-200 truncate">{userName}</span>
+            <span className="text-[10px] text-slate-500 uppercase font-black">{role}</span>
+          </div>
+        </div>
+
         <button 
           onClick={logout} 
-          className="w-full bg-slate-800 dark:bg-slate-900 hover:bg-red-600 hover:text-white py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-widest border border-slate-700 dark:border-slate-800"
+          className="w-full group flex items-center justify-center gap-2 bg-slate-800 dark:bg-slate-900 hover:bg-red-600 hover:text-white py-3 rounded-xl font-bold transition-all text-[10px] uppercase tracking-widest border border-slate-700 dark:border-slate-800"
         >
-          Logout Session
+          <LogOut size={14} className="group-hover:translate-x-1 transition-transform" />
+          Terminate Session
         </button>
       </div>
     </div>
