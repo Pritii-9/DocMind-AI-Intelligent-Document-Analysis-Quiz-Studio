@@ -1,79 +1,140 @@
-import random
-import string
+import re
 import secrets
-from flask import Blueprint, request, current_app, jsonify
-from flask_mail import Message
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
-from werkzeug.security import generate_password_hash, check_password_hash
-from extensions import mail
+import string
+from datetime import datetime, timedelta
+
 from bson import ObjectId
+from flask import Blueprint, current_app, jsonify, request
+from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required
+from flask_mail import Message
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from extensions import mail
 
 auth_bp = Blueprint("auth", __name__)
 
-def generate_short_code():
-    """Generates a professional 6-character invitation code."""
-    return ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-# --- PUBLIC REGISTRATION (ADMIN) ---
+
+def _json_body():
+    return request.get_json(silent=True) or {}
+
+
+def _normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
+
+
+def _validate_email(email: str) -> bool:
+    return bool(EMAIL_PATTERN.match(email))
+
+
+def _validate_password(password: str) -> tuple[bool, str]:
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters"
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least one uppercase letter"
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least one lowercase letter"
+    if not re.search(r"\d", password):
+        return False, "Password must contain at least one number"
+    return True, ""
+
+
+def _generate_short_code():
+    return "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+
+
+def _admin_scope_filter(admin_email: str):
+    return {"$or": [{"email": admin_email}, {"invited_by": admin_email}]}
+
+
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    data = request.json
-    users = current_app.db.users
-    
-    if users.find_one({"email": data["email"]}):
-        return jsonify({"msg": "User already exists"}), 400
+    data = _json_body()
+    name = (data.get("name") or "").strip()
+    email = _normalize_email(data.get("email", ""))
+    password = data.get("password") or ""
 
-    otp = str(random.randint(100000, 999999))
-    
-    # Unified Logic: Store 'name' and default 'role' to 'admin'
-    users.insert_one({
-        "name": data.get("name", "New User"),
-        "email": data["email"],
-        "password": generate_password_hash(data["password"]),
-        "role": "admin",  # Every individual is the admin of their own workspace
-        "otp": otp,
-        "verified": False,
-        "is_active": True
-    })
+    if not name:
+        return jsonify({"msg": "Name is required"}), 400
+    if not _validate_email(email):
+        return jsonify({"msg": "Invalid email address"}), 400
+    is_valid_password, password_error = _validate_password(password)
+    if not is_valid_password:
+        return jsonify({"msg": password_error}), 400
+
+    users = current_app.db.users
+    if users.find_one({"email": email}):
+        return jsonify({"msg": "User already exists"}), 409
+
+    otp = f"{secrets.randbelow(900000) + 100000}"
+    users.insert_one(
+        {
+            "name": name,
+            "email": email,
+            "password": generate_password_hash(password),
+            "role": "admin",
+            "otp": otp,
+            "otp_expires_at": datetime.utcnow() + timedelta(minutes=10),
+            "verified": False,
+            "is_active": True,
+            "workspace_owner": email,
+            "created_at": datetime.utcnow(),
+        }
+    )
 
     try:
-        msg = Message("Verify Your Account", recipients=[data["email"]])
-        msg.body = f"Your OTP is: {otp}"
+        msg = Message("Verify your account", recipients=[email])
+        msg.body = f"Your OTP is: {otp}. It expires in 10 minutes."
         mail.send(msg)
-        return jsonify({"msg": "OTP sent"}), 201
-    except Exception as e:
-        print(f"SMTP Error: {e}") 
-        return jsonify({"msg": "User created, but failed to send OTP."}), 500
+    except Exception:
+        return jsonify({"msg": "User created, but failed to send OTP."}), 502
 
-# --- LOGIN ---
+    return jsonify({"msg": "OTP sent"}), 201
+
+
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.json
-    user = current_app.db.users.find_one({"email": data["email"]})
-    
-    if not user or not check_password_hash(user["password"], data["password"]):
+    data = _json_body()
+    email = _normalize_email(data.get("email", ""))
+    password = data.get("password") or ""
+    if not email or not password:
+        return jsonify({"msg": "Email and password are required"}), 400
+
+    user = current_app.db.users.find_one({"email": email})
+    if not user or not check_password_hash(user.get("password", ""), password):
         return jsonify({"msg": "Invalid credentials"}), 401
-    
-    # Check if the account has been deactivated by an admin
+
     if not user.get("is_active", True):
-        return jsonify({"msg": "Your account has been deactivated. Contact Admin."}), 403
-        
+        return jsonify({"msg": "Your account has been deactivated. Contact admin."}), 403
     if not user.get("verified"):
         return jsonify({"msg": "Email not verified"}), 403
 
-    # Include role and name in the identity/claims
-    token = create_access_token(
-        identity=user["email"], 
-        additional_claims={"role": user.get("role", "admin"), "name": user.get("name")}
+    workspace_owner = (
+        user.get("workspace_owner")
+        or user.get("invited_by")
+        or user.get("email")
     )
-    
-    return jsonify({
-        "access_token": token,
-        "role": user.get("role", "admin"),
-        "name": user.get("name")
-    }), 200
+    token = create_access_token(
+        identity=user["email"],
+        additional_claims={
+            "role": user.get("role", "admin"),
+            "name": user.get("name", "User"),
+            "workspace_owner": workspace_owner,
+        },
+    )
+    return (
+        jsonify(
+            {
+                "access_token": token,
+                "role": user.get("role", "admin"),
+                "name": user.get("name", "User"),
+            }
+        ),
+        200,
+    )
 
-# --- ADMIN: FETCH TEAM MEMBERS ---
+
 @auth_bp.route("/users", methods=["GET"])
 @jwt_required()
 def get_all_users():
@@ -81,16 +142,20 @@ def get_all_users():
     if claims.get("role") != "admin":
         return jsonify({"msg": "Admin access required"}), 403
 
+    admin_email = get_jwt_identity()
     users_collection = current_app.db.users
-    # Fetch all users, excluding sensitive fields
-    all_users = list(users_collection.find({}, {"password": 0, "otp": 0, "invite_code": 0}))
-    
+    query = _admin_scope_filter(admin_email)
+    all_users = list(
+        users_collection.find(
+            query,
+            {"password": 0, "otp": 0, "otp_expires_at": 0, "invite_code": 0},
+        )
+    )
     for user in all_users:
         user["_id"] = str(user["_id"])
-        
     return jsonify(all_users), 200
 
-# --- ADMIN: INVITE MEMBER (SHORT CODE) ---
+
 @auth_bp.route("/invite-member", methods=["POST"])
 @jwt_required()
 def invite_member():
@@ -98,55 +163,80 @@ def invite_member():
     if claims.get("role") != "admin":
         return jsonify({"msg": "Admin access required"}), 403
 
-    data = request.json
-    users = current_app.db.users
-    
-    if users.find_one({"email": data["email"]}):
-        return jsonify({"msg": "User already exists"}), 400
+    data = _json_body()
+    name = (data.get("name") or "").strip()
+    email = _normalize_email(data.get("email", ""))
+    admin_email = get_jwt_identity()
 
-    invite_code = generate_short_code()
-    users.insert_one({
-        "name": data.get("name"),
-        "email": data["email"],
-        "role": "user",  # Invited members are standard users
-        "verified": False,
-        "is_active": True,
-        "invite_code": invite_code,
-        "invited_by": get_jwt_identity()
-    })
+    if not name:
+        return jsonify({"msg": "Name is required"}), 400
+    if not _validate_email(email):
+        return jsonify({"msg": "Invalid email address"}), 400
+    if email == admin_email:
+        return jsonify({"msg": "You cannot invite yourself"}), 400
+
+    users = current_app.db.users
+    if users.find_one({"email": email}):
+        return jsonify({"msg": "User already exists"}), 409
+
+    invite_code = _generate_short_code()
+    users.insert_one(
+        {
+            "name": name,
+            "email": email,
+            "role": "user",
+            "verified": False,
+            "is_active": True,
+            "invite_code": invite_code,
+            "invited_by": admin_email,
+            "workspace_owner": admin_email,
+            "created_at": datetime.utcnow(),
+        }
+    )
 
     try:
-        msg = Message("Your Invitation Code", recipients=[data["email"]])
-        msg.body = f"Hello {data.get('name')}, your SecureVault invite code is: {invite_code}"
+        msg = Message("Your invitation code", recipients=[email])
+        msg.body = (
+            f"Hello {name}, your SecureVault invite code is: {invite_code}. "
+            "Use it in the app to activate your account."
+        )
         mail.send(msg)
-        return jsonify({"msg": "Invitation sent successfully!", "code": invite_code}), 201
-    except Exception as e:
+    except Exception:
         return jsonify({"msg": "Member added, but email failed.", "code": invite_code}), 201
 
-# --- USER: ACTIVATE VIA INVITE CODE ---
+    return jsonify({"msg": "Invitation sent successfully!", "code": invite_code}), 201
+
+
 @auth_bp.route("/verify-invite", methods=["POST"])
 def verify_invite():
-    data = request.json
+    data = _json_body()
+    email = _normalize_email(data.get("email", ""))
+    invite_code = (data.get("invite_code") or "").strip().upper()
+    password = data.get("password") or ""
+
+    if not _validate_email(email):
+        return jsonify({"msg": "Invalid email address"}), 400
+    if len(invite_code) != 6:
+        return jsonify({"msg": "Invite code must be 6 characters"}), 400
+    is_valid_password, password_error = _validate_password(password)
+    if not is_valid_password:
+        return jsonify({"msg": password_error}), 400
+
     users = current_app.db.users
-    
-    user = users.find_one({"email": data["email"], "invite_code": data["invite_code"].upper()})
-    
+    user = users.find_one({"email": email, "invite_code": invite_code, "role": "user"})
     if not user:
         return jsonify({"msg": "Invalid email or invite code"}), 400
-    
+
     users.update_one(
-        {"email": data["email"]}, 
+        {"email": email},
         {
-            "$set": {
-                "password": generate_password_hash(data["password"]),
-                "verified": True
-            },
-            "$unset": {"invite_code": ""} 
-        }
+            "$set": {"password": generate_password_hash(password), "verified": True},
+            "$unset": {"invite_code": ""},
+        },
     )
     return jsonify({"msg": "Account activated successfully"}), 200
 
-# --- ADMIN: TOGGLE USER STATUS ---
+
 @auth_bp.route("/users/<user_id>/status", methods=["POST"])
 @jwt_required()
 def toggle_user_status(user_id):
@@ -154,40 +244,56 @@ def toggle_user_status(user_id):
     if claims.get("role") != "admin":
         return jsonify({"msg": "Admin access required"}), 403
 
-    users_collection = current_app.db.users
-    user = users_collection.find_one({"_id": ObjectId(user_id)})
-    
-    if not user:
-        return jsonify({"msg": "User not found"}), 404
+    if not ObjectId.is_valid(user_id):
+        return jsonify({"msg": "Invalid user id"}), 400
 
-    # Toggle the current status (Activate/Deactivate)
+    admin_email = get_jwt_identity()
+    users_collection = current_app.db.users
+    user = users_collection.find_one({"_id": ObjectId(user_id), "invited_by": admin_email})
+    if not user:
+        return jsonify({"msg": "User not found in your workspace"}), 404
+
     new_status = not user.get("is_active", True)
-    users_collection.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"is_active": new_status}}
-    )
-    
+    users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
     action = "activated" if new_status else "deactivated"
     return jsonify({"msg": f"User {action} successfully"}), 200
 
-# --- GENERAL: VERIFY OTP ---
+
 @auth_bp.route("/verify-otp", methods=["POST"])
 def verify_otp():
-    data = request.json
+    data = _json_body()
+    email = _normalize_email(data.get("email", ""))
+    otp = (data.get("otp") or "").strip()
+
+    if not _validate_email(email):
+        return jsonify({"msg": "Invalid email address"}), 400
+    if len(otp) != 6 or not otp.isdigit():
+        return jsonify({"msg": "OTP must be a 6-digit code"}), 400
+
     users = current_app.db.users
-    user = users.find_one({"email": data["email"], "otp": data["otp"]})
-    
+    user = users.find_one({"email": email, "otp": otp})
     if not user:
         return jsonify({"msg": "Invalid OTP"}), 400
 
-    users.update_one({"email": data["email"]}, {"$set": {"verified": True}, "$unset": {"otp": ""}})
+    expires_at = user.get("otp_expires_at")
+    if expires_at and datetime.utcnow() > expires_at:
+        return jsonify({"msg": "OTP expired. Please register again."}), 400
+
+    users.update_one(
+        {"email": email},
+        {"$set": {"verified": True}, "$unset": {"otp": "", "otp_expires_at": ""}},
+    )
     return jsonify({"msg": "Verified"}), 200
 
-# --- GENERAL: GET ME ---
+
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
 def get_me():
     email = get_jwt_identity()
-    user = current_app.db.users.find_one({"email": email}, {"password": 0, "otp": 0})
+    user = current_app.db.users.find_one(
+        {"email": email}, {"password": 0, "otp": 0, "otp_expires_at": 0}
+    )
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
     user["_id"] = str(user["_id"])
     return jsonify(user), 200

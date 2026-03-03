@@ -14,8 +14,14 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean; onCl
       await api.post("/auth/invite-member", { name, email });
       alert("Invitation sent successfully!");
       onClose();
-    } catch (err: any) {
-      alert(err.response?.data?.msg || "Failed to send invitation");
+    } catch (err: unknown) {
+      const fallbackMessage = "Failed to send invitation";
+      if (typeof err === "object" && err !== null && "response" in err) {
+        const maybeResponse = (err as { response?: { data?: { msg?: string } } }).response;
+        alert(maybeResponse?.data?.msg || fallbackMessage);
+      } else {
+        alert(fallbackMessage);
+      }
     } finally {
       setLoading(false);
     }

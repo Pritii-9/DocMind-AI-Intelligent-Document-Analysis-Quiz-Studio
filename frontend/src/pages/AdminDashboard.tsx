@@ -1,17 +1,24 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Sidebar";
+import type { AdminView } from "../components/Sidebar";
 import InviteModal from "../components/InviteModal";
 import api from "../api/axios";
 import { Users, UserPlus, ShieldAlert, ShieldCheck, Loader2 } from "lucide-react";
 
-export default function AdminDashboard() {
+export default function AdminDashboard({
+  adminView,
+  onChangeAdminView,
+}: {
+  adminView?: AdminView;
+  onChangeAdminView?: (view: AdminView) => void;
+}) {
   const { userName } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const memberCount = users.filter((user) => user.role === "user").length;
 
   const fetchUsers = async () => {
     try {
@@ -41,7 +48,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
-      <Sidebar onSelectFile={() => {}} activeFile="" />
+      <Sidebar
+        onSelectFile={() => {}}
+        activeFile=""
+        adminView={adminView}
+        onChangeAdminView={onChangeAdminView}
+      />
       <InviteModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); fetchUsers(); }} />
 
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -56,11 +68,19 @@ export default function AdminDashboard() {
           <div className="max-w-6xl mx-auto">
             <section className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
               <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                <h3 className="text-lg font-bold dark:text-white">Team Members</h3>
+                <h3 className="text-lg font-bold dark:text-white flex items-center gap-2"><Users size={18} /> Team Members</h3>
                 <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-blue-200 dark:shadow-none">
                   <UserPlus size={18} /> Invite Member
                 </button>
               </div>
+
+              {!loading && memberCount === 0 && (
+                <div className="px-6 pt-6">
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 text-blue-700 px-4 py-3 text-sm font-semibold">
+                    You are currently a solo admin workspace. Invite members anytime.
+                  </div>
+                </div>
+              )}
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
