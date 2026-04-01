@@ -1,10 +1,11 @@
 import os
 import re
 import time
+from datetime import datetime
 from urllib.parse import unquote
 
 from botocore.exceptions import ClientError
-from flask import Blueprint, current_app, jsonify, request, Response
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 
 from extensions import get_s3_client
@@ -21,9 +22,50 @@ def _workspace_owner():
     return claims.get("workspace_owner") or get_jwt_identity()
 
 
+def _workspace_owner_slug() -> str:
+    return _workspace_owner().replace("@", "_at_").replace(".", "_")
+
+
 def _workspace_prefix():
-    owner = _workspace_owner().replace("@", "_at_").replace(".", "_")
-    return f"workspaces/{owner}/"
+    return f"workspaces/{_workspace_owner_slug()}/"
+
+
+def _workspace_query():
+    return {"workspace_owner": _workspace_owner()}
+
+
+def _document_collection():
+    return current_app.db.pdfs
+
+
+def _sync_documents_from_s3():
+    s3_client = get_s3_client()
+    prefix = _workspace_prefix()
+    response = s3_client.list_objects_v2(Bucket=_bucket(), Prefix=prefix)
+    now = datetime.utcnow()
+
+    for obj in response.get("Contents", []):
+        key = obj.get("Key", "")
+        if not key.endswith(".pdf"):
+            continue
+
+        filename = key.replace(prefix, "", 1)
+        _document_collection().update_one(
+            {"workspace_owner": _workspace_owner(), "key": key},
+            {
+                "$setOnInsert": {
+                    "workspace_owner": _workspace_owner(),
+                    "filename": filename,
+                    "key": key,
+                    "size_bytes": int(obj.get("Size", 0)),
+                    "uploaded_at": obj.get("LastModified") or now,
+                    "last_accessed_at": None,
+                    "uploaded_by": _workspace_owner(),
+                    "uploaded_by_name": "Workspace Owner",
+                }
+            },
+            upsert=True,
+        )
 
 
 def _validate_pdf_filename(filename: str) -> tuple[bool, str]:
@@ -45,6 +87,70 @@ def _full_s3_key(filename: str) -> str:
 
 def _is_key_in_workspace(key: str) -> bool:
     return key.startswith(_workspace_prefix())
+
+
+def _serialize_document(document: dict) -> dict:
+    return {
+        "id": str(document.get("_id")),
+        "filename": document.get("filename"),
+        "key": document.get("key"),
+        "size_bytes": int(document.get("size_bytes") or 0),
+        "uploaded_at": document.get("uploaded_at").isoformat() if document.get("uploaded_at") else None,
+        "last_accessed_at": document.get("last_accessed_at").isoformat()
+        if document.get("last_accessed_at")
+        else None,
+        "uploaded_by": document.get("uploaded_by"),
+        "uploaded_by_name": document.get("uploaded_by_name"),
+    }
+
+
+def _recent_activity(limit: int = 6) -> list[dict]:
+    activity = []
+
+    docs = list(
+        _document_collection()
+        .find(_workspace_query())
+        .sort("uploaded_at", -1)
+        .limit(limit)
+    )
+    for document in docs:
+        activity.append(
+            {
+                "type": "upload",
+                "title": f"{document.get('filename')} uploaded",
+                "timestamp": document.get("uploaded_at").isoformat()
+                if document.get("uploaded_at")
+                else None,
+                "actor": document.get("uploaded_by_name") or document.get("uploaded_by"),
+                "meta": {
+                    "size_bytes": int(document.get("size_bytes") or 0),
+                },
+            }
+        )
+
+    members = list(
+        current_app.db.users.find(
+            {"$or": [{"email": _workspace_owner()}, {"workspace_owner": _workspace_owner()}]}
+        )
+        .sort("created_at", -1)
+        .limit(limit)
+    )
+    for member in members:
+        activity.append(
+            {
+                "type": "member",
+                "title": f"{member.get('name', 'Team member')} joined workspace",
+                "timestamp": member.get("created_at").isoformat() if member.get("created_at") else None,
+                "actor": member.get("email"),
+                "meta": {
+                    "role": member.get("role", "user"),
+                    "is_active": bool(member.get("is_active", True)),
+                },
+            }
+        )
+
+    activity.sort(key=lambda item: item.get("timestamp") or "", reverse=True)
+    return activity[:limit]
 
 
 @pdf_bp.before_request
@@ -130,6 +236,28 @@ def complete_multipart():
             UploadId=upload_id,
             MultipartUpload={"Parts": parts},
         )
+
+        head = s3_client.head_object(Bucket=_bucket(), Key=key)
+        filename = key.replace(_workspace_prefix(), "", 1)
+        now = datetime.utcnow()
+        claims = get_jwt()
+
+        _document_collection().update_one(
+            {"workspace_owner": _workspace_owner(), "key": key},
+            {
+                "$set": {
+                    "workspace_owner": _workspace_owner(),
+                    "filename": filename,
+                    "key": key,
+                    "size_bytes": int(head.get("ContentLength", 0)),
+                    "uploaded_at": now,
+                    "last_accessed_at": None,
+                    "uploaded_by": get_jwt_identity(),
+                    "uploaded_by_name": claims.get("name", "User"),
+                }
+            },
+            upsert=True,
+        )
         return jsonify({"msg": "Upload successful"}), 200
     except ClientError as err:
         return jsonify({"msg": "S3 completion failed", "error": str(err)}), 500
@@ -138,19 +266,78 @@ def complete_multipart():
 @pdf_bp.route("/list", methods=["GET"])
 @jwt_required()
 def list_pdfs():
-    s3_client = get_s3_client()
-    prefix = _workspace_prefix()
-
     try:
-        response = s3_client.list_objects_v2(Bucket=_bucket(), Prefix=prefix)
-        files = [
-            obj["Key"].replace(prefix, "", 1)
-            for obj in response.get("Contents", [])
-            if obj["Key"].endswith(".pdf")
-        ]
-        return jsonify(sorted(files, reverse=True)), 200
+        if _document_collection().count_documents(_workspace_query()) == 0:
+            _sync_documents_from_s3()
+        documents = list(
+            _document_collection().find(_workspace_query()).sort("uploaded_at", -1)
+        )
+        files = [document.get("filename") for document in documents if document.get("filename")]
+        return jsonify(files), 200
     except ClientError as err:
         return jsonify({"msg": "S3 list failed", "error": str(err)}), 500
+
+
+@pdf_bp.route("/library", methods=["GET"])
+@jwt_required()
+def library():
+    try:
+        if _document_collection().count_documents(_workspace_query()) == 0:
+            _sync_documents_from_s3()
+        documents = list(
+            _document_collection().find(_workspace_query()).sort("uploaded_at", -1)
+        )
+        return jsonify([_serialize_document(document) for document in documents]), 200
+    except ClientError as err:
+        return jsonify({"msg": "S3 library sync failed", "error": str(err)}), 500
+
+
+@pdf_bp.route("/overview", methods=["GET"])
+@jwt_required()
+def overview():
+    workspace_owner = _workspace_owner()
+    try:
+        if _document_collection().count_documents(_workspace_query()) == 0:
+            _sync_documents_from_s3()
+
+        users = list(
+            current_app.db.users.find(
+                {"$or": [{"email": workspace_owner}, {"workspace_owner": workspace_owner}]}
+            )
+        )
+        documents = list(_document_collection().find(_workspace_query()))
+
+        active_members = sum(1 for user in users if user.get("is_active", True))
+        verified_members = sum(1 for user in users if user.get("verified"))
+        total_storage_bytes = sum(int(document.get("size_bytes") or 0) for document in documents)
+        last_upload_at = None
+        if documents:
+            timestamps = [document.get("uploaded_at") for document in documents if document.get("uploaded_at")]
+            if timestamps:
+                last_upload_at = max(timestamps).isoformat()
+
+        return (
+            jsonify(
+                {
+                    "stats": {
+                        "total_documents": len(documents),
+                        "total_storage_bytes": total_storage_bytes,
+                        "active_members": active_members,
+                        "verified_members": verified_members,
+                        "last_upload_at": last_upload_at,
+                    },
+                    "documents": [_serialize_document(document) for document in sorted(
+                        documents,
+                        key=lambda item: item.get("uploaded_at") or datetime.min,
+                        reverse=True,
+                    )[:6]],
+                    "activity": _recent_activity(),
+                }
+            ),
+            200,
+        )
+    except ClientError as err:
+        return jsonify({"msg": "S3 overview sync failed", "error": str(err)}), 500
 
 
 @pdf_bp.route("/stream/<path:key>", methods=["GET"])
@@ -166,6 +353,11 @@ def stream_pdf(key):
     s3_client = get_s3_client()
 
     try:
+        _document_collection().update_one(
+            {"workspace_owner": _workspace_owner(), "key": s3_key},
+            {"$set": {"last_accessed_at": datetime.utcnow()}},
+        )
+
         if not range_header:
             obj = s3_client.get_object(Bucket=_bucket(), Key=s3_key)
             return Response(obj["Body"].read(), mimetype="application/pdf")

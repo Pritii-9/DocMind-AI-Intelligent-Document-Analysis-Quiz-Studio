@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
+from pymongo.errors import PyMongoError
 
 from extensions import jwt, mail
 from routes.auth import auth_bp
@@ -16,6 +17,14 @@ load_dotenv()
 def _get_cors_origins() -> list[str]:
     raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173")
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+
+def _create_mongo_client() -> MongoClient:
+    timeout_ms = int(os.getenv("MONGO_SERVER_SELECTION_TIMEOUT_MS", "5000"))
+    return MongoClient(
+        os.getenv("MONGO_URI", "mongodb://localhost:27017/"),
+        serverSelectionTimeoutMS=timeout_ms,
+    )
 
 
 def create_app():
@@ -51,7 +60,8 @@ def create_app():
     app.config["AWS_SECRET_KEY"] = os.getenv("AWS_SECRET_KEY")
     app.config["S3_BUCKET_NAME"] = os.getenv("S3_BUCKET_NAME")
 
-    mongo = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017/"))
+    mongo = _create_mongo_client()
+    app.mongo_client = mongo
     app.db = mongo[os.getenv("MONGO_DB_NAME", "pdf_stream")]
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -59,7 +69,15 @@ def create_app():
 
     @app.get("/health")
     def health():
-        return jsonify({"status": "ok"}), 200
+        try:
+            app.mongo_client.admin.command("ping")
+            database = "connected"
+            status_code = 200
+        except PyMongoError as err:
+            database = f"unavailable: {err.__class__.__name__}"
+            status_code = 503
+
+        return jsonify({"status": "ok", "database": database}), status_code
 
     @jwt.unauthorized_loader
     def unauthorized_callback(err):

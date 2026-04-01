@@ -1,144 +1,124 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
-import { FileText, Folder, LayoutDashboard, LogOut, Users } from "lucide-react";
+import { BarChart3, FileText, LogOut, ShieldCheck, Users } from "lucide-react";
 
-import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
-export type AdminView = "documents" | "team";
+export type AppSection = "overview" | "library" | "viewer" | "team";
+
+type SidebarProps = {
+  currentSection: AppSection;
+  onNavigate: (section: AppSection) => void;
+  canManageTeam: boolean;
+  documentCount: number;
+  teamCount: number;
+  selectedDocumentName?: string;
+};
+
+const navItems = [
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "library", label: "Document Library", icon: FileText },
+  { id: "viewer", label: "Live Viewer", icon: ShieldCheck },
+  { id: "team", label: "Team Management", icon: Users },
+] as const;
 
 export default function Sidebar({
-  onSelectFile,
-  activeFile,
-  refreshToken = 0,
-  adminView,
-  onChangeAdminView,
-}: {
-  onSelectFile: any;
-  activeFile: string;
-  refreshToken?: number;
-  adminView?: AdminView;
-  onChangeAdminView?: (view: AdminView) => void;
-}) {
+  currentSection,
+  onNavigate,
+  canManageTeam,
+  documentCount,
+  teamCount,
+  selectedDocumentName,
+}: SidebarProps) {
   const { logout, role, userName } = useAuth();
-  const [files, setFiles] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const response = await api.get("/pdf/list");
-        setFiles(response.data);
-      } catch (err) {
-        console.error("Failed to load documents", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFiles();
-  }, [refreshToken]);
 
   return (
-    <div className="w-72 bg-slate-900 dark:bg-black h-full flex flex-col text-slate-400 border-r border-slate-800 shadow-2xl transition-all">
-      <div className="p-8">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-900/40">
-            V
-          </div>
-          <h2 className="text-xl font-black text-white tracking-tighter">Vault PRO</h2>
-        </div>
-
-        {role === "admin" && (
-          <div className="mb-8">
-            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
-              Administration
-            </h2>
-            <div className="space-y-2">
-              <button
-                onClick={() => onChangeAdminView?.("documents")}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${
-                  adminView === "documents"
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40"
-                    : "hover:bg-slate-800"
-                }`}
-              >
-                <LayoutDashboard size={18} />
-                Documents
-              </button>
-              <button
-                onClick={() => onChangeAdminView?.("team")}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${
-                  adminView === "team"
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/40"
-                    : "hover:bg-slate-800"
-                }`}
-              >
-                <Users size={18} />
-                Team Management
-              </button>
+    <aside className="w-full shrink-0 border-b border-black/5 bg-[var(--panel-strong)] text-white shadow-2xl lg:h-screen lg:w-80 lg:border-b-0 lg:border-r lg:border-white/10">
+      <div className="flex h-full flex-col">
+        <div className="border-b border-white/10 px-6 py-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent)] text-sm font-black shadow-lg shadow-cyan-950/40">
+              SV
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100/60">
+                Enterprise Workspace
+              </p>
+              <h1 className="font-display text-2xl font-bold tracking-tight">SecureVault Pro</h1>
             </div>
           </div>
-        )}
+        </div>
 
-        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
-          Your Documents
-        </h2>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 space-y-1 custom-scrollbar">
-        {loading ? (
-          <div className="space-y-3 px-4 animate-pulse">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-12 bg-slate-800/30 rounded-xl" />
-            ))}
-          </div>
-        ) : files.length === 0 ? (
-          <div className="text-center py-10">
-            <Folder className="mx-auto text-slate-700 mb-2" size={32} />
-            <p className="text-xs text-slate-600">No documents found</p>
-          </div>
-        ) : (
-          files.map((file) => (
-            <button
-              key={file}
-              onClick={() => onSelectFile(file)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium border border-transparent group ${
-                activeFile === file
-                  ? "bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-900/40"
-                  : "hover:bg-slate-800 dark:hover:bg-slate-900 hover:text-slate-200"
-              }`}
-            >
-              <FileText
-                className={`${
-                  activeFile === file ? "text-white" : "text-slate-500 group-hover:text-blue-400"
-                }`}
-                size={18}
-              />
-              <span className="truncate">{file}</span>
-            </button>
-          ))
-        )}
-      </div>
-
-      <div className="p-6 border-t border-slate-800 bg-slate-900/50">
-        <div className="flex items-center gap-3 mb-6 px-2">
-          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white border border-slate-600">
-            {userName?.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold text-slate-200 truncate">{userName}</span>
-            <span className="text-[10px] text-slate-500 uppercase font-black">{role}</span>
+        <div className="px-6 py-5">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-cyan-100/55">Documents</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{documentCount}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-cyan-100/55">Team</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{teamCount}</p>
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={logout}
-          className="w-full group flex items-center justify-center gap-2 bg-slate-800 dark:bg-slate-900 hover:bg-red-600 hover:text-white py-3 rounded-xl font-bold transition-all text-[10px] uppercase tracking-widest border border-slate-700 dark:border-slate-800"
-        >
-          <LogOut size={14} className="group-hover:translate-x-1 transition-transform" />
-          Terminate Session
-        </button>
+        <nav className="px-4 pb-4">
+          <p className="px-3 pb-3 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100/45">
+            Navigation
+          </p>
+          <div className="grid gap-2">
+            {navItems
+              .filter((item) => canManageTeam || item.id !== "team")
+              .map((item) => {
+                const Icon = item.icon;
+                const active = currentSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onNavigate(item.id)}
+                    className={`group flex items-center justify-between rounded-2xl px-4 py-3 text-left transition ${active ? "bg-white text-slate-950 shadow-lg" : "bg-white/0 text-slate-200 hover:bg-white/8 hover:text-white"}`}
+                  >
+                    <span className="flex items-center gap-3 font-medium">
+                      <Icon size={18} />
+                      {item.label}
+                    </span>
+                    {active ? <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent)]" /> : null}
+                  </button>
+                );
+              })}
+          </div>
+        </nav>
+
+        <div className="mx-6 rounded-3xl border border-white/10 bg-white/5 p-5">
+          <p className="text-xs uppercase tracking-[0.24em] text-cyan-100/45">Active Focus</p>
+          <p className="mt-3 text-lg font-semibold text-white">
+            {selectedDocumentName || "No document selected"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Use the library to search documents, then open the live viewer for a boardroom-friendly walkthrough.
+          </p>
+        </div>
+
+        <div className="mt-auto border-t border-white/10 px-6 py-5">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white">
+              {userName?.charAt(0).toUpperCase() || "U"}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-white">{userName}</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-cyan-100/50">{role}</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-300/30 hover:bg-red-500 hover:text-white"
+          >
+            <LogOut size={16} />
+            Sign Out
+          </button>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }

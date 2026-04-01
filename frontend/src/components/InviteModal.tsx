@@ -1,26 +1,40 @@
+import { Mail, User, UserPlus, X } from "lucide-react";
 import { useState } from "react";
+
 import api from "../api/axios";
-import { X, UserPlus, Mail, User } from "lucide-react";
 
 export default function InviteModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetState = () => {
+    setName("");
+    setEmail("");
+    setMessage(null);
+    setError(null);
+  };
+
+  const handleInvite = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
+    setMessage(null);
+    setError(null);
+
     try {
-      await api.post("/auth/invite-member", { name, email });
-      alert("Invitation sent successfully!");
+      const response = await api.post("/auth/invite-member", { name, email });
+      setMessage(`Invitation created successfully. Code: ${response.data.code}`);
+      resetState();
       onClose();
-    } catch (err: unknown) {
-      const fallbackMessage = "Failed to send invitation";
+    } catch (err) {
+      const fallback = "Failed to send invitation.";
       if (typeof err === "object" && err !== null && "response" in err) {
-        const maybeResponse = (err as { response?: { data?: { msg?: string } } }).response;
-        alert(maybeResponse?.data?.msg || fallbackMessage);
+        const response = (err as { response?: { data?: { msg?: string } } }).response;
+        setError(response?.data?.msg || fallback);
       } else {
-        alert(fallbackMessage);
+        setError(fallback);
       }
     } finally {
       setLoading(false);
@@ -30,47 +44,70 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean; onCl
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-100 dark:border-slate-800 p-8 relative animate-in fade-in zoom-in duration-200">
-        <button onClick={onClose} className="absolute right-6 top-6 text-slate-400 hover:text-slate-600 transition-colors">
-          <X size={24} />
-        </button>
-
-        <div className="mb-8">
-          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl flex items-center justify-center mb-4">
-            <UserPlus size={24} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[2rem] border border-black/5 bg-[var(--panel)] p-8 shadow-2xl dark:border-white/10">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+              <UserPlus size={22} />
+            </div>
+            <h2 className="mt-4 font-display text-2xl font-semibold text-[var(--text-strong)]">Invite a new teammate</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-soft)]">
+              Send onboarding access to a workspace member so they can start viewing secure documents.
+            </p>
           </div>
-          <h2 className="text-2xl font-black dark:text-white">Invite Team Member</h2>
-          <p className="text-slate-500 text-sm mt-1">They will receive an email to set up their password.</p>
+          <button
+            type="button"
+            onClick={() => {
+              resetState();
+              onClose();
+            }}
+            className="rounded-full p-2 text-[var(--text-soft)] transition hover:bg-[var(--panel-muted)] hover:text-[var(--text-strong)]"
+            aria-label="Close modal"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <form onSubmit={handleInvite} className="space-y-5">
-          <div className="relative group">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
-            <input 
+        <form onSubmit={handleInvite} className="mt-6 space-y-4">
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-soft)]">
+              <User size={16} />
+              Full name
+            </span>
+            <input
               required
-              className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
-              placeholder="Full Name" 
-              onChange={(e) => setName(e.target.value)} 
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="w-full rounded-2xl border border-black/5 bg-[var(--panel-muted)] px-4 py-3 text-[var(--text-strong)] outline-none transition focus:border-[var(--accent)] dark:border-white/10"
+              placeholder="Aarav Mehta"
             />
-          </div>
+          </label>
 
-          <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
-            <input 
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-soft)]">
+              <Mail size={16} />
+              Work email
+            </span>
+            <input
               required
               type="email"
-              className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
-              placeholder="Email Address" 
-              onChange={(e) => setEmail(e.target.value)} 
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-2xl border border-black/5 bg-[var(--panel-muted)] px-4 py-3 text-[var(--text-strong)] outline-none transition focus:border-[var(--accent)] dark:border-white/10"
+              placeholder="aarav@company.com"
             />
-          </div>
+          </label>
 
-          <button 
+          {message ? <p className="text-sm font-medium text-emerald-600">{message}</p> : null}
+          {error ? <p className="text-sm font-medium text-rose-600">{error}</p> : null}
+
+          <button
+            type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-200 transition-all active:scale-95 disabled:bg-slate-300"
+            className="w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Sending..." : "SEND INVITATION"}
+            {loading ? "Sending invite..." : "Send invitation"}
           </button>
         </form>
       </div>

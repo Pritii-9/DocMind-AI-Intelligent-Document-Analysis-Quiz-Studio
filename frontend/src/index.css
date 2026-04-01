@@ -1,2 +1,86 @@
 @import "tailwindcss";
-@variant dark (&:where(.dark, .dark *)); /* Add this line for v4 class-based dark mode */
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --app-bg: #f3efe6;
+  --panel: rgba(255, 252, 247, 0.88);
+  --panel-muted: rgba(236, 230, 219, 0.55);
+  --panel-strong: #0f1724;
+  --accent: #0f766e;
+  --accent-soft: rgba(15, 118, 110, 0.12);
+  --text-strong: #11202e;
+  --text-soft: #5d6875;
+  --border-strong: rgba(17, 32, 46, 0.12);
+  color: var(--text-strong);
+  background: var(--app-bg);
+  font-family: "Segoe UI Variable", "Trebuchet MS", sans-serif;
+  scroll-behavior: smooth;
+}
+
+.dark {
+  --app-bg: #07131d;
+  --panel: rgba(9, 22, 33, 0.92);
+  --panel-muted: rgba(19, 35, 49, 0.92);
+  --panel-strong: #050d14;
+  --accent: #2dd4bf;
+  --accent-soft: rgba(45, 212, 191, 0.12);
+  --text-strong: #e8f0f5;
+  --text-soft: #93a7b7;
+  --border-strong: rgba(148, 163, 184, 0.18);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.1), transparent 30%),
+    var(--app-bg);
+  color: var(--text-strong);
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.font-display {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(93, 104, 117, 0.32);
+}
+
+@keyframes fade-slide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

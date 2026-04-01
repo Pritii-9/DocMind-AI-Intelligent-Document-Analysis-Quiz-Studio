@@ -1,42 +1,40 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
+
 import api from "../api/axios";
 
 type AuthContextType = {
   token: string | null;
   role: string | null;
   userName: string | null;
+  isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   verifyOtp: (email: string, otp: string) => Promise<void>;
   logout: () => void;
 };
 
-const AuthContext = createContext<AuthContextType>(null!);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // Sync state with localStorage on initialization
-  const [token, setToken] = useState(localStorage.getItem("access_token"));
-  const [role, setRole] = useState(localStorage.getItem("user_role"));
-  const [userName, setUserName] = useState(localStorage.getItem("user_name"));
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem("access_token"));
+  const [role, setRole] = useState<string | null>(() => localStorage.getItem("user_role"));
+  const [userName, setUserName] = useState<string | null>(() => localStorage.getItem("user_name"));
 
   const login = async (email: string, password: string) => {
     const res = await api.post("/auth/login", { email, password });
-    
-    // De-structure the new unified response fields
-    const { access_token, role, name } = res.data;
-    
+    const { access_token, role: nextRole, name } = res.data;
+
     localStorage.setItem("access_token", access_token);
-    localStorage.setItem("user_role", role);
+    localStorage.setItem("user_role", nextRole);
     localStorage.setItem("user_name", name);
-    
+
     setToken(access_token);
-    setRole(role);
+    setRole(nextRole);
     setUserName(name);
   };
 
   const register = async (name: string, email: string, password: string) => {
-    // Now sending 'name' to the backend for the unified signup
     await api.post("/auth/register", { name, email, password });
   };
 
@@ -51,18 +49,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setToken(null);
     setRole(null);
     setUserName(null);
-    window.location.href = "/";
+    window.location.hash = "";
   };
 
-  return (
-    <AuthContext.Provider value={{ token, role, userName, login, register, verifyOtp, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      token,
+      role,
+      userName,
+      isAuthenticated: Boolean(token),
+      login,
+      register,
+      verifyOtp,
+      logout,
+    }),
+    [role, token, userName]
   );
-};
 
-export const useAuth = () => {
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
   return context;
-};
+}
