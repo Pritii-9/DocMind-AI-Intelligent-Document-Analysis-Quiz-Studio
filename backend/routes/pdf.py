@@ -1,5 +1,8 @@
+import json
 import os
+import queue
 import re
+import threading
 import time
 from datetime import datetime
 from urllib.parse import unquote
@@ -11,6 +14,35 @@ from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from extensions import get_s3_client
 
 pdf_bp = Blueprint("pdf", __name__)
+
+_sse_lock = threading.Lock()
+_sse_subscribers: dict[str, list[queue.Queue]] = {}
+
+
+def _emit_sse_event(workspace_owner: str, event: dict):
+    with _sse_lock:
+        listeners = list(_sse_subscribers.get(workspace_owner, []))
+    for q in listeners:
+        try:
+            q.put_nowait(event)
+        except Exception:
+            continue
+
+
+def _register_sse(workspace_owner: str):
+    q = queue.Queue()
+    with _sse_lock:
+        _sse_subscribers.setdefault(workspace_owner, []).append(q)
+    return q
+
+
+def _unregister_sse(workspace_owner: str, q: queue.Queue):
+    with _sse_lock:
+        current = _sse_subscribers.get(workspace_owner, [])
+        if q in current:
+            current.remove(q)
+        if not current:
+            _sse_subscribers.pop(workspace_owner, None)
 
 
 def _bucket():
@@ -258,6 +290,18 @@ def complete_multipart():
             },
             upsert=True,
         )
+
+        _emit_sse_event(_workspace_owner(), {
+            "type": "upload",
+            "title": f"{filename} uploaded",
+            "actor": claims.get("name", "User"),
+            "timestamp": now.isoformat(),
+            "meta": {
+                "filename": filename,
+                "size_bytes": int(head.get("ContentLength", 0)),
+            },
+        })
+
         return jsonify({"msg": "Upload successful"}), 200
     except ClientError as err:
         return jsonify({"msg": "S3 completion failed", "error": str(err)}), 500
@@ -290,6 +334,31 @@ def library():
         return jsonify([_serialize_document(document) for document in documents]), 200
     except ClientError as err:
         return jsonify({"msg": "S3 library sync failed", "error": str(err)}), 500
+
+
+@pdf_bp.route("/events", methods=["GET"])
+@jwt_required()
+def events():
+    workspace_owner = _workspace_owner()
+
+    def stream():
+        q = _register_sse(workspace_owner)
+        try:
+            while True:
+                try:
+                    payload = q.get(timeout=25)
+                    event_text = json.dumps(payload)
+                    yield f"event: workspace-event\ndata: {event_text}\n\n"
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+        finally:
+            _unregister_sse(workspace_owner, q)
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    }
+    return Response(stream(), mimetype="text/event-stream", headers=headers)
 
 
 @pdf_bp.route("/overview", methods=["GET"])

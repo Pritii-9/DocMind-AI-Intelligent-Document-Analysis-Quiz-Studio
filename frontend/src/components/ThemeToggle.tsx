@@ -1,50 +1,19 @@
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
-
-type ThemeMode = "light" | "dark";
-
-function getInitialTheme(): ThemeMode {
-  const saved = localStorage.getItem("theme");
-  if (saved === "light" || saved === "dark") {
-    return saved;
-  }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
+import { useTheme } from "../context/ThemeContext";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-
-  useEffect(() => {
-    const html = document.documentElement;
-    html.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
-
-    // Force a repaint to ensure CSS variables are applied immediately
-    html.style.display = 'none';
-    html.offsetHeight; // Trigger reflow
-    html.style.display = '';
-  }, [theme]);
+  const { theme, toggleTheme } = useTheme();
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 p-1 backdrop-blur">
-      <button
-        type="button"
-        onClick={() => setTheme("light")}
-        className={`rounded-full p-2 transition ${theme === "light" ? "bg-[var(--accent)] text-white" : "text-cyan-100/60 hover:text-white"}`}
-        aria-label="Use light theme"
-        title="Light theme"
-      >
-        <Sun size={16} />
-      </button>
-      <button
-        type="button"
-        onClick={() => setTheme("dark")}
-        className={`rounded-full p-2 transition ${theme === "dark" ? "bg-[var(--accent)] text-white" : "text-cyan-100/60 hover:text-white"}`}
-        aria-label="Use dark theme"
-        title="Dark theme"
-      >
-        <Moon size={16} />
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={toggleTheme}
+      className="inline-flex items-center gap-2 rounded-full border border-[var(--button-secondary-border)] bg-[var(--button-secondary-bg)] px-3 py-2 text-xs font-semibold text-[var(--button-secondary-text)] transition hover:bg-[var(--button-secondary-hover)]"
+      aria-label="Toggle theme"
+      title="Toggle theme"
+    >
+      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+      {theme === "dark" ? "Light" : "Dark"}
+    </button>
   );
 }

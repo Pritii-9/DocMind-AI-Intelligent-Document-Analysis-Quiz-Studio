@@ -1,4 +1,4 @@
-import { FileUp, LoaderCircle, Shield, Sparkles } from "lucide-react";
+﻿import { FileUp, LoaderCircle, Shield, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { API_BASE_URL } from "../api/axios";
@@ -28,7 +28,7 @@ export default function Uploader({ onUploadComplete }: UploaderProps) {
 
   const fileSummary = useMemo(() => {
     if (!file) return "PDF documents only";
-    return `${file.name} � ${formatBytes(file.size)}`;
+    return `${file.name} • ${formatBytes(file.size)}`;
   }, [file]);
 
   const handleUpload = async () => {
@@ -153,7 +153,7 @@ export default function Uploader({ onUploadComplete }: UploaderProps) {
             type="button"
             disabled={isUploading || !file}
             onClick={handleUpload}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--button-primary-bg)] px-4 py-3 text-sm font-semibold text-[var(--button-primary-text)] transition hover:bg-[var(--button-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isUploading ? <LoaderCircle size={18} className="animate-spin" /> : <Sparkles size={18} />}
             {isUploading ? `Uploading ${progress}%` : "Start secure upload"}
@@ -173,3 +173,4 @@ export default function Uploader({ onUploadComplete }: UploaderProps) {
     </div>
   );
 }
+

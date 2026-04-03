@@ -42,6 +42,8 @@ def create_app():
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
         minutes=int(os.getenv("JWT_ACCESS_MINUTES", "120"))
     )
+    app.config["JWT_TOKEN_LOCATION"] = ["headers", "query_string"]
+    app.config["JWT_QUERY_STRING_NAME"] = "token"
 
     app.config.update(
         MAIL_SERVER=os.getenv("MAIL_SERVER"),

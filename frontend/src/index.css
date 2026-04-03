@@ -7,6 +7,21 @@
   --panel: rgba(255, 252, 247, 0.88);
   --panel-muted: rgba(236, 230, 219, 0.55);
   --panel-strong: #0f1724;
+  --panel-solid: #fffaf2;
+  --workspace-shell: #f5efe4;
+  --workspace-frame: rgba(255, 252, 247, 0.92);
+  --workspace-border: rgba(17, 32, 46, 0.08);
+  --workspace-divider: rgba(17, 32, 46, 0.1);
+  --workspace-hover: rgba(17, 32, 46, 0.05);
+  --workspace-input: rgba(255, 255, 255, 0.7);
+  --viewer-bg: #f1ebe1;
+  --button-primary-bg: #0c6b63;
+  --button-primary-hover: #095850;
+  --button-primary-text: #f8fffd;
+  --button-secondary-bg: rgba(17, 32, 46, 0.08);
+  --button-secondary-hover: rgba(17, 32, 46, 0.14);
+  --button-secondary-text: #11202e;
+  --button-secondary-border: rgba(17, 32, 46, 0.12);
   --accent: #0f766e;
   --accent-soft: rgba(15, 118, 110, 0.12);
   --text-strong: #11202e;
@@ -18,11 +33,26 @@
   scroll-behavior: smooth;
 }
 
-.dark {
+html.dark {
   --app-bg: #07131d;
   --panel: rgba(9, 22, 33, 0.92);
   --panel-muted: rgba(19, 35, 49, 0.92);
   --panel-strong: #050d14;
+  --panel-solid: #0b0f1a;
+  --workspace-shell: #06080f;
+  --workspace-frame: rgba(11, 15, 26, 0.84);
+  --workspace-border: rgba(255, 255, 255, 0.08);
+  --workspace-divider: rgba(255, 255, 255, 0.1);
+  --workspace-hover: rgba(255, 255, 255, 0.05);
+  --workspace-input: rgba(255, 255, 255, 0.05);
+  --viewer-bg: #05070d;
+  --button-primary-bg: #1ea99b;
+  --button-primary-hover: #2dd4bf;
+  --button-primary-text: #04110f;
+  --button-secondary-bg: rgba(255, 255, 255, 0.08);
+  --button-secondary-hover: rgba(255, 255, 255, 0.14);
+  --button-secondary-text: #e8f0f5;
+  --button-secondary-border: rgba(255, 255, 255, 0.12);
   --accent: #2dd4bf;
   --accent-soft: rgba(45, 212, 191, 0.12);
   --text-strong: #e8f0f5;
@@ -43,7 +73,7 @@ body {
     radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.1), transparent 30%),
     var(--app-bg);
   color: var(--text-strong);
-  transition: background-color 300ms ease, color 300ms ease;
+  transition: background-color 180ms ease, color 180ms ease;
 }
 
 * {
@@ -55,7 +85,7 @@ input,
 select,
 textarea {
   font: inherit;
-  transition: background-color 300ms ease, border-color 300ms ease, color 300ms ease, box-shadow 300ms ease, opacity 300ms ease;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
 }
 
 button {

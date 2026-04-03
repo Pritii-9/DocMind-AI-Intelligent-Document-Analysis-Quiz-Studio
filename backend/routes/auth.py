@@ -387,6 +387,21 @@ def invite_member():
         }
     )
 
+    # Emit an SSE event (if active) for new invites / workspace member addition
+    try:
+        from routes.pdf import _emit_sse_event
+
+        _emit_sse_event(admin_email, {
+            "type": "member",
+            "title": f"{name} was invited",
+            "actor": admin_email,
+            "timestamp": datetime.utcnow().isoformat(),
+            "meta": {"email": email, "role": "user"},
+        })
+    except Exception:
+        # ignore event emission errors; core feature stays functional
+        pass
+
     try:
         msg = Message("Your invitation code", recipients=[email])
         msg.body = (
@@ -427,6 +442,21 @@ def verify_invite():
             "$unset": {"invite_code": ""},
         },
     )
+
+    try:
+        from routes.pdf import _emit_sse_event
+
+        owner = user.get("workspace_owner") or user.get("invited_by") or email
+        _emit_sse_event(owner, {
+            "type": "member",
+            "title": f"{user.get('name', email)} joined workspace",
+            "actor": email,
+            "timestamp": datetime.utcnow().isoformat(),
+            "meta": {"email": email, "role": "user"},
+        })
+    except Exception:
+        pass
+
     return jsonify({"msg": "Account activated successfully"}), 200
 
 

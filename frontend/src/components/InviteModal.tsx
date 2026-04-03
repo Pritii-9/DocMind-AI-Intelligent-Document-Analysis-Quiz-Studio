@@ -105,7 +105,7 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean; onCl
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-2xl bg-[var(--button-primary-bg)] px-4 py-3 text-sm font-semibold text-[var(--button-primary-text)] transition hover:bg-[var(--button-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Sending invite..." : "Send invitation"}
           </button>

@@ -93,7 +93,7 @@ export default function PdfViewer({ url }: { url: string }) {
           <button
             type="button"
             onClick={() => setZoom((value) => Math.max(0.7, Number((value - 0.1).toFixed(2))))}
-            className="rounded-full p-2 text-[var(--text-soft)] transition hover:bg-white hover:text-[var(--text-strong)] dark:hover:bg-white/10"
+            className="rounded-full p-2 text-[var(--text-soft)] transition hover:bg-[var(--button-secondary-bg)] hover:text-[var(--text-strong)]"
             aria-label="Zoom out"
           >
             <ZoomOut size={16} />
@@ -102,7 +102,7 @@ export default function PdfViewer({ url }: { url: string }) {
           <button
             type="button"
             onClick={() => setZoom((value) => Math.min(1.8, Number((value + 0.1).toFixed(2))))}
-            className="rounded-full p-2 text-[var(--text-soft)] transition hover:bg-white hover:text-[var(--text-strong)] dark:hover:bg-white/10"
+            className="rounded-full p-2 text-[var(--text-soft)] transition hover:bg-[var(--button-secondary-bg)] hover:text-[var(--text-strong)]"
             aria-label="Zoom in"
           >
             <ZoomIn size={16} />
@@ -132,7 +132,7 @@ export default function PdfViewer({ url }: { url: string }) {
                 type="button"
                 disabled={activePage <= 1}
                 onClick={() => setActivePage((page) => Math.max(1, page - 1))}
-                className="rounded-full p-1 text-[var(--text-soft)] transition hover:bg-black/5 hover:text-[var(--text-strong)] disabled:opacity-40 dark:hover:bg-white/10"
+                className="rounded-full p-1 text-[var(--text-soft)] transition hover:bg-[var(--button-secondary-bg)] hover:text-[var(--text-strong)] disabled:opacity-40"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -143,7 +143,7 @@ export default function PdfViewer({ url }: { url: string }) {
                 type="button"
                 disabled={activePage >= pages}
                 onClick={() => setActivePage((page) => Math.min(pages, page + 1))}
-                className="rounded-full p-1 text-[var(--text-soft)] transition hover:bg-black/5 hover:text-[var(--text-strong)] disabled:opacity-40 dark:hover:bg-white/10"
+                className="rounded-full p-1 text-[var(--text-soft)] transition hover:bg-[var(--button-secondary-bg)] hover:text-[var(--text-strong)] disabled:opacity-40"
               >
                 <ChevronRight size={16} />
               </button>
