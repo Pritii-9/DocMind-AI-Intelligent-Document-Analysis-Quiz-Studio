@@ -1,6 +1,8 @@
 import {
   ArrowRight,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   FileText,
   Filter,
@@ -83,8 +85,9 @@ function formatRelativeTime(value: string | null) {
 }
 
 export default function Workspace() {
-  const { role, userName } = useAuth();
+  const { role, userName, logout } = useAuth();
   const canManageTeam = role === "admin";
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [currentSection, setCurrentSection] = useState<AppSection>(() => getInitialSection(canManageTeam));
   const [documents, setDocuments] = useState<PdfDocument[]>([]);
   const [overview, setOverview] = useState<WorkspaceOverview | null>(null);
@@ -195,44 +198,98 @@ export default function Workspace() {
 
   const activity = overview?.activity ?? [];
   const recentDocuments = overview?.documents ?? documents.slice(0, 6);
-  const mobileSections = canManageTeam ? validSections : validSections.filter((section) => section !== "team");
 
   return (
-    <div className="min-h-screen lg:flex">
-      <Sidebar
-        currentSection={currentSection}
-        onNavigate={navigateTo}
-        canManageTeam={canManageTeam}
-        documentCount={documents.length}
-        teamCount={canManageTeam ? users.length : activeMembers}
-        selectedDocumentName={selectedDocument?.filename}
-      />
+    <div className="min-h-screen bg-[var(--app-bg)]">
+      <header className="sticky top-0 z-50 border-b border-black/10 bg-[var(--panel-strong)] py-3 backdrop-blur dark:border-white/10">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-cyan-600 text-white text-sm font-bold">
+              SV
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-cyan-100/60">SafeUp</p>
+              <p className="text-sm font-semibold text-white">PDF Workspace</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="hidden items-center gap-6 lg:flex">
+              <p className="text-sm text-cyan-100/80">
+                Welcome, <span className="font-semibold text-white">{userName}</span>
+              </p>
 
-      <main className="min-w-0 flex-1">
-        <div className="sticky top-0 z-20 border-b border-black/5 bg-[var(--app-bg)]/85 backdrop-blur dark:border-white/10">
-          <div className="mx-auto max-w-7xl px-6 py-4">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-soft)]">Welcome, {userName}</p>
-                <h2 className="mt-1 font-display text-3xl font-semibold text-[var(--text-strong)]">{sectionLabels[currentSection]}</h2>
-                <p className="mt-2 text-sm leading-6 text-[var(--text-soft)]">Smoothly navigate between analytics, documents, viewer controls, and access management in one executive-ready workspace.</p>
+              <div className="flex items-center gap-2 text-xs text-cyan-100/60">
+                <span>PDF Workspace</span>
+                <span className="text-[var(--accent)]">/</span>
+                <span className="text-cyan-100/80">{sectionLabels[currentSection]}</span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <button type="button" onClick={() => void loadWorkspace(true)} className="inline-flex items-center gap-2 rounded-full bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[var(--text-strong)] shadow-sm transition hover:text-[var(--accent)]">
-                  <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
-                  Refresh data
-                </button>
-                <ThemeToggle />
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => navigateTo("library")} className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-110">Upload</button>
+                <button type="button" onClick={() => setIsInviteOpen(true)} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20">Invite</button>
+                <button type="button" onClick={() => void loadWorkspace(true)} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20">Refresh</button>
               </div>
             </div>
 
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-1 lg:hidden">
-              {mobileSections.map((section) => (
-                <button key={section} type="button" onClick={() => navigateTo(section)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${currentSection === section ? "bg-[var(--accent)] text-white" : "bg-[var(--panel)] text-[var(--text-soft)]"}`}>
-                  {sectionLabels[section]}
-                </button>
-              ))}
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition hover:border-white/40 hover:bg-white/20"
+              aria-label="Toggle sidebar"
+            >
+              {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void loadWorkspace(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/20 lg:hidden"
+              aria-label="Refresh workspace data"
+            >
+              <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
+            </button>
+
+            <ThemeToggle />
+
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/40 hover:bg-white/20"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="lg:flex">
+        <Sidebar
+          currentSection={currentSection}
+          onNavigate={navigateTo}
+          canManageTeam={canManageTeam}
+          documentCount={documents.length}
+          teamCount={canManageTeam ? users.length : activeMembers}
+          selectedDocumentName={selectedDocument?.filename}
+          collapsed={isSidebarCollapsed}
+        />
+
+      <main className="min-w-0 flex-1">
+        <div className="sticky top-0 z-20 border-b border-white/10 bg-[var(--panel-strong)] backdrop-blur lg:hidden">
+          <div className="mx-auto max-w-7xl px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-2xl font-semibold text-white">{sectionLabels[currentSection]}</h2>
+                <div className="mt-1 flex items-center gap-2 text-xs text-cyan-100/60">
+                  <span>PDF Workspace</span>
+                  <span className="text-[var(--accent)]">/</span>
+                  <span className="text-cyan-100/80">{sectionLabels[currentSection]}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => navigateTo("library")} className="rounded-full bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110">Upload</button>
+                <button type="button" onClick={() => setIsInviteOpen(true)} className="rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20">Invite</button>
+              </div>
             </div>
           </div>
         </div>
@@ -271,12 +328,9 @@ export default function Workspace() {
 
                   <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
                     <article className="rounded-[2rem] border border-black/5 bg-[var(--panel)] p-6 shadow-sm dark:border-white/10">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-soft)]">Recent uploads</p>
-                          <h3 className="mt-2 font-display text-2xl font-semibold text-[var(--text-strong)]">Latest document activity</h3>
-                        </div>
-                        <button type="button" onClick={() => navigateTo("library")} className="inline-flex items-center gap-2 rounded-full bg-[var(--panel-muted)] px-4 py-2 text-sm font-semibold text-[var(--text-strong)] transition hover:text-[var(--accent)]">Open library<ArrowUpRight size={16} /></button>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--text-soft)]">Recent uploads</p>
+                        <h3 className="mt-2 font-display text-2xl font-semibold text-[var(--text-strong)]">Latest document activity</h3>
                       </div>
 
                       <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -461,8 +515,15 @@ export default function Workspace() {
           )}
         </div>
       </main>
+    </div>
 
-      <InviteModal isOpen={isInviteOpen} onClose={() => { setIsInviteOpen(false); void loadWorkspace(true); }} />
+    <InviteModal isOpen={isInviteOpen} onClose={() => { setIsInviteOpen(false); void loadWorkspace(true); }} />
+
+    <footer className="border-t border-black/5 bg-[var(--app-bg)] dark:border-white/10">
+        <div className="mx-auto max-w-7xl px-6 py-5 text-center text-sm text-[var(--text-soft)]">
+          © 2024 SafeUp. Secure document management for teams.
+        </div>
+      </footer>
     </div>
   );
 }

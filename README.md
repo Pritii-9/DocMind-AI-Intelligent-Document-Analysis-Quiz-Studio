@@ -1,6 +1,6 @@
-# SecureVault Pro
+# SafeUp
 
-SecureVault Pro is a production-style document workspace built with Flask, React, MongoDB, and AWS S3. It supports secure PDF upload, role-based access control, invite-based onboarding, protected streaming, and an executive-friendly operations dashboard.
+SafeUp is a production-style document workspace built with Flask, React, MongoDB, and AWS S3. It supports secure PDF upload, role-based access control, invite-based onboarding, protected streaming, and an executive-friendly operations dashboard.
 
 ## What makes it resume-ready
 
@@ -93,6 +93,23 @@ npm run dev
 Frontend default: `http://localhost:5173`
 Backend default: `http://localhost:5000`
 
+## Docker setup
+
+From the repository root you can build and run the stack with:
+```bash
+docker compose up --build
+```
+
+This starts:
+- `backend` on `http://localhost:5000`
+- `frontend` on `http://localhost:5173`
+- a local `mongo` service for development
+
+If you want the backend to use the local Mongo service, update `backend/.env` to use:
+```env
+MONGO_URI=mongodb://mongo:27017/pdf_stream
+```
+
 ## MongoDB Atlas setup
 
 1. Create a MongoDB Atlas cluster.
@@ -105,7 +122,7 @@ Backend default: `http://localhost:5000`
 
 Example:
 ```env
-MONGO_URI=mongodb+srv://<db_user>:<db_password>@<cluster-name>.mongodb.net/?retryWrites=true&w=majority&appName=securevault-pro
+MONGO_URI=mongodb+srv://<db_user>:<db_password>@<cluster-name>.mongodb.net/?retryWrites=true&w=majority&appName=SafeUp
 MONGO_DB_NAME=pdf_stream
 MONGO_SERVER_SELECTION_TIMEOUT_MS=5000
 ```
@@ -141,4 +158,4 @@ MONGO_SERVER_SELECTION_TIMEOUT_MS=5000
 
 ## How to explain it to a CEO
 
-SecureVault Pro is a secure internal document platform for teams that need controlled access to sensitive PDFs. It lets administrators onboard team members, upload large documents safely, monitor workspace activity, and provide a clean viewing experience without exposing files publicly. The business value is stronger governance, better operational visibility, and a faster internal workflow for sharing protected documents.
+SafeUp is a secure internal document platform for teams that need controlled access to sensitive PDFs. It lets administrators onboard team members, upload large documents safely, monitor workspace activity, and provide a clean viewing experience without exposing files publicly. The business value is stronger governance, better operational visibility, and a faster internal workflow for sharing protected documents.

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @variant dark (&:where(.dark, .dark *));
 
@@ -13,7 +14,7 @@
   --border-strong: rgba(17, 32, 46, 0.12);
   color: var(--text-strong);
   background: var(--app-bg);
-  font-family: "Segoe UI Variable", "Trebuchet MS", sans-serif;
+  font-family: "Inter", "Segoe UI", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif;
   scroll-behavior: smooth;
 }
 
@@ -42,7 +43,7 @@ body {
     radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.1), transparent 30%),
     var(--app-bg);
   color: var(--text-strong);
-  transition: background-color 220ms ease, color 220ms ease;
+  transition: background-color 300ms ease, color 300ms ease;
 }
 
 * {
@@ -51,12 +52,20 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
+  transition: background-color 300ms ease, border-color 300ms ease, color 300ms ease, box-shadow 300ms ease, opacity 300ms ease;
+}
+
+button {
+  cursor: pointer;
 }
 
 .font-display {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 ::-webkit-scrollbar {

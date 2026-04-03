@@ -2,6 +2,7 @@ import { ArrowRight, Eye, EyeOff, Lock, Mail, ShieldCheck, Ticket, User } from "
 import { useMemo, useState } from "react";
 
 import api from "../api/axios";
+import ThemeToggle from "../components/ThemeToggle";
 import { useAuth } from "../context/AuthContext";
 
 type ViewState = "login" | "signup" | "verify" | "invite" | "forgot" | "reset";
@@ -193,6 +194,18 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[var(--app-bg)]">
+      <header className="sticky top-0 z-50 border-b border-black/10 bg-[var(--app-bg)]/95 px-6 py-3 backdrop-blur dark:border-white/10">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-cyan-600 text-white">SV</div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-soft)]">SafeUp</p>
+              <p className="text-sm font-bold text-[var(--text-strong)]">Secure workspace</p>
+            </div>
+          </div>
+          <ThemeToggle />
+        </div>
+      </header>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(15,118,110,0.18),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(245,158,11,0.12),_transparent_30%)]" />
       <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col gap-12 px-6 py-10 lg:flex-row lg:items-center lg:justify-between">
         <section className="max-w-2xl pt-6 lg:pt-0">
@@ -420,6 +433,12 @@ export default function Login() {
           </div>
         </section>
       </div>
+
+      <footer className="border-t border-black/5 bg-[var(--panel)] dark:border-white/10">
+        <div className="mx-auto max-w-7xl px-6 py-5 text-center text-sm text-[var(--text-soft)]">
+          © 2024 SafeUp. Secure document management for teams.
+        </div>
+      </footer>
     </div>
   );
 }

@@ -73,7 +73,7 @@ def start_signup():
     existing_user = users.find_one({"email": email})
 
     if existing_user and (existing_user.get("verified") or existing_user.get("password")):
-        return jsonify({"msg": "User already exists"}), 409
+        return jsonify({"msg": "Email already registered. Please login with your existing account."}), 409
 
     otp = _generate_numeric_code()
     payload = {
@@ -107,6 +107,17 @@ def start_signup():
         return jsonify({"msg": "Unable to send verification email right now."}), 502
 
     return jsonify({"msg": "Verification code sent"}), 200
+
+
+@auth_bp.route("/check-email", methods=["GET"])
+def check_email():
+    email = _normalize_email(request.args.get("email", ""))
+    if not _validate_email(email):
+        return jsonify({"msg": "Invalid email address"}), 400
+
+    users = current_app.db.users
+    exists = users.find_one({"email": email}) is not None
+    return jsonify({"exists": exists}), 200
 
 
 @auth_bp.route("/complete-signup", methods=["POST"])
@@ -263,7 +274,7 @@ def forgot_password():
     )
 
     try:
-        msg = Message("Reset your SecureVault password", recipients=[email])
+        msg = Message("Reset your SafeUp password", recipients=[email])
         msg.body = (
             f"Hello {user.get('name', 'there')}, your password reset code is {reset_code}. "
             "It expires in 10 minutes."
@@ -379,7 +390,7 @@ def invite_member():
     try:
         msg = Message("Your invitation code", recipients=[email])
         msg.body = (
-            f"Hello {name}, your SecureVault invite code is: {invite_code}. "
+            f"Hello {name}, your SafeUp invite code is: {invite_code}. "
             "Use it in the app to activate your account."
         )
         mail.send(msg)
