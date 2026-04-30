@@ -7,6 +7,10 @@ export type PdfDocument = {
   last_accessed_at: string | null;
   uploaded_by: string | null;
   uploaded_by_name: string | null;
+  ai_index_status: "pending" | "processing" | "ready" | "failed";
+  ai_indexed_at: string | null;
+  ai_chunk_count: number;
+  ai_error: string | null;
 };
 
 export type ActivityItem = {

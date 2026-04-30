@@ -104,7 +104,7 @@ export default function Uploader({ onUploadComplete }: UploaderProps) {
         throw new Error(completeData?.msg || "Failed to complete upload.");
       }
 
-      setMessage("Upload completed and indexed in the workspace.");
+      setMessage("Upload completed. AI indexing has started in the background.");
       setFile(null);
       onUploadComplete?.(fileName);
     } catch (err) {

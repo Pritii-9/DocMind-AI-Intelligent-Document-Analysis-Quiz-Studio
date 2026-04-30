@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
+import type { AxiosError } from "axios";
+import ChatAI from "../components/ChatAI";
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +14,8 @@ import {
   Shield,
   Plus,
   LogOut,
+  Bot,
+  X,
 } from "lucide-react";
 
 import api, { API_BASE_URL } from "../api/axios";
@@ -20,7 +24,7 @@ import Sidebar, { type AppSection } from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
 import Uploader from "../components/Uploader";
 import { useAuth } from "../context/AuthContext";
-import type { PdfDocument, WorkspaceOverview } from "../types/pdf";
+import type { ActivityItem, PdfDocument, WorkspaceOverview } from "../types/pdf";
 import type { WorkspaceUser } from "../types/user";
 
 const sectionLabels: Record<AppSection, string> = {
@@ -76,6 +80,19 @@ function formatTimestamp(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatAiStatus(status?: PdfDocument["ai_index_status"]) {
+  switch (status) {
+    case "ready":
+      return "AI Ready";
+    case "processing":
+      return "Indexing";
+    case "failed":
+      return "Index Failed";
+    default:
+      return "Pending Index";
+  }
+}
+
 function compareByLatestUpload(a: PdfDocument, b: PdfDocument) {
   return new Date(b.uploaded_at || 0).getTime() - new Date(a.uploaded_at || 0).getTime();
 }
@@ -96,6 +113,11 @@ function getPreferredDocument(docs: PdfDocument[], current?: PdfDocument | null,
   return [...docs].sort(compareByLatestUpload)[0];
 }
 
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const axiosError = error as AxiosError<{ msg?: string }>;
+  return axiosError.response?.data?.msg || fallback;
+}
+
 export default function Workspace() {
   const { role, logout } = useAuth();
   const canManageTeam = role === "admin";
@@ -107,11 +129,18 @@ export default function Workspace() {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandSelectionIndex, setCommandSelectionIndex] = useState(0);
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; detail: string; type: string }>>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const [documents, setDocuments] = useState<PdfDocument[]>([]);
   const [overview, setOverview] = useState<WorkspaceOverview | null>(null);
   const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<PdfDocument | null>(null);
+
+  const [selectedForExtraction, setSelectedForExtraction] = useState<Set<string>>(new Set());
+  const [isExtractionModalOpen, setIsExtractionModalOpen] = useState(false);
+  const [extractionPrompt, setExtractionPrompt] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [extractionResults, setExtractionResults] = useState<any[] | null>(null);
 
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("recent");
@@ -148,8 +177,8 @@ export default function Workspace() {
       setSelectedDocument((current) => getPreferredDocument(libRes.data, current, preferredFileName));
       setDocumentDelta(overRes.data.stats.total_documents - prevCount);
       return libRes.data;
-    } catch (err: any) {
-      setError(err.response?.data?.msg || "Unable to load workspace data.");
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "Unable to load workspace data."));
       return [];
     } finally {
       setLoading(false);
@@ -219,7 +248,7 @@ export default function Workspace() {
   }, [documents, search, sortBy]);
 
   const recentDocuments = useMemo(() => [...documents].sort(compareByLatestUpload), [documents]);
-  const latestDocument = recentDocuments[0] ?? null;
+  // const latestDocument = recentDocuments[0] ?? null;
 
   const activeMembersCount = useMemo(
     () => users.filter((user) => user.is_active).length || overview?.stats.active_members || 1,
@@ -446,6 +475,17 @@ export default function Workspace() {
 
               <div className="flex items-center gap-2">
                 <ThemeToggle />
+                {currentSection === 'viewer' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsChatOpen((open) => !open)}
+                    className="rounded-lg bg-[var(--accent-soft)] p-2 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-all"
+                    title="AI Chat"
+                    aria-label="Toggle AI assistant"
+                  >
+                    <Bot size={18} />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={logout}
@@ -472,41 +512,91 @@ export default function Workspace() {
               <>
                 {currentSection === "overview" && (
                   <div className="space-y-8">
-                    <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                      {summaryCards.map((card) => (
-                        <div
-                          key={card.label}
-                          className="rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-6 shadow-2xl shadow-black/5"
-                        >
-                          <div className="mb-4 flex items-center justify-between">
-                            <div className="rounded-2xl bg-[var(--accent-soft)] p-3 text-[var(--accent)]">
-                              <card.icon size={22} />
-                            </div>
-                          </div>
-                          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">{card.label}</p>
-                          <p className="mb-2 text-3xl font-bold text-[var(--text-strong)]">{card.value}</p>
-                          <p className="text-xs text-[var(--text-soft)]">{card.detail}</p>
+                    {documents.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-12 py-20 text-center shadow-2xl shadow-black/5 animate-in fade-in slide-in-from-bottom-8">
+                        <div className="mb-6 rounded-3xl bg-[var(--accent-soft)] p-6 text-[var(--accent)]">
+                          <Sparkles size={48} strokeWidth={1.5} />
                         </div>
-                      ))}
-                    </section>
+                        <h2 className="mb-4 text-4xl font-bold text-[var(--text-strong)] tracking-tight">Welcome to SafeUp</h2>
+                        <p className="mb-10 max-w-lg text-lg text-[var(--text-soft)] leading-relaxed">
+                          Your enterprise workspace is ready. To see the streaming PDF viewer and RAG AI in action, upload a document or instantly generate a dummy confidential document.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-4 items-center">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                setLoading(true);
+                                await api.post("/pdf/inject-sample");
+                                await loadWorkspace(true);
+                                pushToast("Sample Injected", "A sample document has been securely added.", "success");
+                              } catch (e) {
+                                pushToast("Error", "Failed to inject sample", "warning");
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            className="group flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[var(--accent)] to-cyan-600 px-8 py-4 text-sm font-bold text-white shadow-xl shadow-[var(--accent)]/30 transition-transform hover:scale-105 active:scale-95"
+                          >
+                            <FileText size={20} />
+                            Generate Sample Document
+                            <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
+                          </button>
+                          <p className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-widest px-4">OR</p>
+                          <button
+                            type="button"
+                            onClick={() => navigateTo("library")}
+                            className="flex items-center gap-2 rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel)] px-8 py-4 text-sm font-bold text-[var(--text-strong)] transition-colors hover:border-[var(--text-soft)] hover:bg-[var(--panel-muted)]"
+                          >
+                            Upload your own
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                          {summaryCards.map((card) => (
+                            <div
+                              key={card.label}
+                              className="rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-6 shadow-2xl shadow-black/5"
+                            >
+                              <div className="mb-4 flex items-center justify-between">
+                                <div className="rounded-2xl bg-[var(--accent-soft)] p-3 text-[var(--accent)]">
+                                  <card.icon size={22} />
+                                </div>
+                              </div>
+                              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">{card.label}</p>
+                              <p className="mb-2 text-3xl font-bold text-[var(--text-strong)]">{card.value}</p>
+                              <p className="text-xs text-[var(--text-soft)]">{card.detail}</p>
+                            </div>
+                          ))}
+                        </section>
 
                     <section className="grid gap-8 lg:grid-cols-[1fr_400px]">
-                      <div className="rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-8 shadow-2xl shadow-black/5">
-                        <h3 className="mb-6 text-xl font-bold text-[var(--text-strong)]">Recent Documents</h3>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {overview?.documents.map((doc: PdfDocument) => (
+                      <div className="rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-6 shadow-2xl shadow-black/5">
+                        <div className="mb-6 flex items-center justify-between">
+                          <h3 className="text-xl font-bold text-[var(--text-strong)]">Recent Activity</h3>
+                          <button onClick={() => navigateTo("library")} className="text-sm font-bold text-[var(--accent)] hover:underline">View Full History</button>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                          {overview?.documents.slice(0, 3).map((doc: PdfDocument) => (
                             <button
                               key={doc.key}
                               type="button"
                               onClick={() => handleSelectDocument(doc)}
-                              className="group rounded-3xl border border-[var(--workspace-border)] bg-[var(--panel)] p-5 text-left transition-all hover:border-[var(--accent)]/50 hover:bg-[var(--panel-muted)]"
+                              className="group flex items-center justify-between rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel)] px-4 py-3 text-left transition-all hover:border-[var(--accent)]/50 hover:bg-[var(--panel-muted)]"
                             >
-                              <p className="truncate font-bold text-[var(--text-strong)] transition-colors group-hover:text-[var(--accent)]">
-                                {doc.filename}
-                              </p>
-                              <p className="mt-1 text-xs text-[var(--text-soft)]">{formatBytes(doc.size_bytes)}</p>
-                              <div className="mt-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-soft)]">
-                                {formatRelativeTime(doc.uploaded_at)}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-bold text-[var(--text-strong)] transition-colors group-hover:text-[var(--accent)]">
+                                  {doc.filename}
+                                </p>
+                                <div className="mt-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-soft)]">
+                                  <span>{formatBytes(doc.size_bytes)}</span>
+                                  <span>•</span>
+                                  <span>{formatRelativeTime(doc.uploaded_at)}</span>
+                                  <span>•</span>
+                                  <span className="text-[var(--accent)]">{formatAiStatus(doc.ai_index_status)}</span>
+                                </div>
                               </div>
                             </button>
                           ))}
@@ -516,7 +606,7 @@ export default function Workspace() {
                       <div className="rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-8 shadow-2xl shadow-black/5">
                         <h3 className="mb-6 text-xl font-bold text-[var(--text-strong)]">Activity</h3>
                         <div className="space-y-4">
-                          {overview?.activity.map((item: any, index: number) => (
+                          {overview?.activity.map((item: ActivityItem, index: number) => (
                             <div key={index} className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel)] p-4">
                               <p className="text-sm font-bold text-[var(--text-strong)]">{item.title}</p>
                               <p className="mt-1 text-xs text-[var(--text-soft)]">{item.actor}</p>
@@ -525,8 +615,51 @@ export default function Workspace() {
                         </div>
                       </div>
                     </section>
-                  </div>
+
+                    <section className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+                      <div className="rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-8 shadow-2xl shadow-black/5">
+                        <div className="mb-5 flex items-center gap-3">
+                          <div className="rounded-2xl bg-sky-500/10 p-3 text-sky-600">
+                            <Bot size={20} />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-[var(--text-strong)]">Workspace AI Agent</h3>
+                            <p className="text-sm text-[var(--text-soft)]">
+                              Ask about uploads, team activity, or search across indexed documents.
+                            </p>
+                          </div>
+                        </div>
+                        <ChatAI title="Workspace Agent" className="h-[420px]" />
+                      </div>
+
+                      <div className="rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-8 shadow-2xl shadow-black/5">
+                        <h3 className="mb-6 text-xl font-bold text-[var(--text-strong)]">AI Readiness</h3>
+                        <div className="space-y-4">
+                          {recentDocuments.slice(0, 5).map((doc) => (
+                            <div key={doc.key} className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel)] p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-[var(--text-strong)]">{doc.filename}</p>
+                                  <p className="mt-1 text-xs text-[var(--text-soft)]">
+                                    {doc.ai_chunk_count > 0 ? `${doc.ai_chunk_count} chunks indexed` : "Awaiting first ingest"}
+                                  </p>
+                                </div>
+                                <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                                  {formatAiStatus(doc.ai_index_status)}
+                                </span>
+                              </div>
+                              {doc.ai_error ? (
+                                <p className="mt-3 text-xs text-rose-500">{doc.ai_error}</p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+                  </>
                 )}
+              </div>
+            )}
 
                 {currentSection === "library" && (
                   <div className="space-y-8">
@@ -553,10 +686,26 @@ export default function Workspace() {
                         </select>
                       </div>
 
-                      <div className="grid gap-4 lg:grid-cols-3">
+                      <div className="grid gap-4 lg:grid-cols-3 pb-24">
                         {filteredDocuments.map((doc) => (
-                          <div key={doc.key} className="rounded-3xl border border-[var(--workspace-border)] bg-[var(--panel)] p-6">
-                            <p className="mb-4 truncate font-bold text-[var(--text-strong)]">{doc.filename}</p>
+                          <div key={doc.key} className={`relative rounded-3xl border ${selectedForExtraction.has(doc.key) ? 'border-[var(--accent)] bg-[var(--accent)]/5' : 'border-[var(--workspace-border)] bg-[var(--panel)]'} p-6 transition-all`}>
+                            <div className="absolute top-4 right-4 z-10">
+                              <input 
+                                type="checkbox" 
+                                className="h-5 w-5 rounded border-gray-300 accent-[var(--accent)] cursor-pointer"
+                                checked={selectedForExtraction.has(doc.key)}
+                                onChange={(e) => {
+                                  const newSet = new Set(selectedForExtraction);
+                                  if (e.target.checked) newSet.add(doc.key);
+                                  else newSet.delete(doc.key);
+                                  setSelectedForExtraction(newSet);
+                                }}
+                              />
+                            </div>
+                            <p className="mb-4 truncate font-bold text-[var(--text-strong)] pr-8">{doc.filename}</p>
+                            <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                              {formatAiStatus(doc.ai_index_status)}
+                            </p>
                             <div className="flex gap-2">
                               <button
                                 type="button"
@@ -570,140 +719,213 @@ export default function Workspace() {
                         ))}
                       </div>
                     </div>
+
+                    {selectedForExtraction.size > 0 && (
+                      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-8">
+                        <div className="flex items-center gap-6 rounded-full border border-[var(--workspace-border)] bg-[var(--panel-solid)] px-8 py-4 shadow-2xl shadow-black/20">
+                          <span className="text-sm font-bold text-[var(--text-strong)]">
+                            <span className="text-[var(--accent)]">{selectedForExtraction.size}</span> document{selectedForExtraction.size !== 1 ? 's' : ''} selected
+                          </span>
+                          <div className="h-6 w-px bg-[var(--workspace-divider)]" />
+                          <button
+                            onClick={() => {
+                              setSelectedForExtraction(new Set());
+                              setExtractionResults(null);
+                            }}
+                            className="text-xs font-bold uppercase tracking-widest text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            onClick={() => setIsExtractionModalOpen(true)}
+                            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[var(--accent)] to-cyan-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[var(--accent)]/30 transition-transform hover:scale-105 active:scale-95"
+                          >
+                            <Sparkles size={16} />
+                            Extract Data
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {isExtractionModalOpen && (
+                      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in">
+                        <div className="w-full max-w-4xl overflow-hidden rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] shadow-2xl flex flex-col max-h-[90vh]">
+                          <div className="flex items-center justify-between border-b border-[var(--workspace-divider)] p-6">
+                            <h2 className="text-xl font-bold text-[var(--text-strong)] flex items-center gap-2">
+                              <Sparkles className="text-[var(--accent)]" size={24} />
+                              Smart Data Extraction
+                            </h2>
+                            <button onClick={() => setIsExtractionModalOpen(false)} className="rounded-lg p-2 text-[var(--text-soft)] hover:bg-[var(--workspace-hover)] hover:text-[var(--text-strong)] transition-colors">
+                              <X size={20} />
+                            </button>
+                          </div>
+                          
+                          <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                            {!extractionResults ? (
+                              <>
+                                <div>
+                                  <label className="mb-2 block text-sm font-bold text-[var(--text-strong)]">What data do you want to extract?</label>
+                                  <p className="mb-4 text-xs text-[var(--text-soft)]">
+                                    Describe the fields you want to pull from the {selectedForExtraction.size} selected document{selectedForExtraction.size !== 1 ? 's' : ''}. The AI will read the documents and output structured data.
+                                  </p>
+                                  <textarea
+                                    value={extractionPrompt}
+                                    onChange={(e) => setExtractionPrompt(e.target.value)}
+                                    placeholder="e.g. Invoice Number, Total Amount, Due Date, and Vendor Name"
+                                    className="h-32 w-full rounded-2xl border border-[var(--workspace-border)] bg-[var(--workspace-input)] p-4 text-sm text-[var(--text-strong)] outline-none transition focus:border-[var(--accent)]"
+                                  />
+                                </div>
+                                <div className="rounded-2xl bg-[var(--accent-soft)] p-4 text-sm text-[var(--accent)] flex items-start gap-3">
+                                  <Bot size={20} className="shrink-0 mt-0.5" />
+                                  <p><strong>Pro Tip:</strong> Be specific about the data types. E.g., "Total Amount (number only), Date (YYYY-MM-DD)".</p>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="overflow-x-auto rounded-2xl border border-[var(--workspace-border)] bg-[var(--workspace-input)]">
+                                <table className="w-full text-left text-sm">
+                                  <thead className="border-b border-[var(--workspace-divider)] bg-[var(--panel-muted)]">
+                                    <tr>
+                                      {Object.keys(extractionResults[0] || {}).map(key => (
+                                        <th key={key} className="p-4 font-bold text-[var(--text-strong)]">{key}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-[var(--workspace-divider)]">
+                                    {extractionResults.map((row, i) => (
+                                      <tr key={i} className="hover:bg-[var(--panel-solid)] transition-colors">
+                                        {Object.values(row).map((val: any, j) => (
+                                          <td key={j} className="p-4 text-[var(--text-soft)]">{typeof val === 'object' ? JSON.stringify(val) : String(val)}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="border-t border-[var(--workspace-divider)] p-6 flex justify-end gap-4 bg-[var(--panel)]">
+                            {!extractionResults ? (
+                              <button
+                                onClick={async () => {
+                                  if (!extractionPrompt) return;
+                                  setExtracting(true);
+                                  try {
+                                    const res = await api.post("/ai/extract", {
+                                      document_keys: Array.from(selectedForExtraction),
+                                      schema_prompt: extractionPrompt
+                                    });
+                                    setExtractionResults(res.data.data);
+                                    pushToast("Extraction Complete", "Successfully extracted data.", "success");
+                                  } catch (e) {
+                                    pushToast("Extraction Failed", getApiErrorMessage(e, "Failed to extract data"), "warning");
+                                  } finally {
+                                    setExtracting(false);
+                                  }
+                                }}
+                                disabled={extracting || !extractionPrompt.trim()}
+                                className="flex items-center gap-2 rounded-xl bg-[var(--button-primary-bg)] px-6 py-3 text-sm font-bold text-[var(--button-primary-text)] transition hover:bg-[var(--button-primary-hover)] disabled:opacity-50"
+                              >
+                                {extracting ? <LoaderCircle className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                                {extracting ? "Extracting Data..." : "Run Extraction"}
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => setExtractionResults(null)}
+                                  className="px-6 py-3 text-sm font-bold text-[var(--text-soft)] transition hover:text-[var(--text-strong)]"
+                                >
+                                  Start Over
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (!extractionResults || extractionResults.length === 0) return;
+                                    const keys = Object.keys(extractionResults[0]);
+                                    const csvContent = [
+                                      keys.join(','),
+                                      ...extractionResults.map(row => keys.map(k => {
+                                        let val = row[k];
+                                        if (val === null || val === undefined) val = "";
+                                        else if (typeof val === 'object') val = JSON.stringify(val);
+                                        return `"${String(val).replace(/"/g, '""')}"`;
+                                      }).join(','))
+                                    ].join('\n');
+                                    
+                                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                    const link = document.createElement('a');
+                                    link.href = URL.createObjectURL(blob);
+                                    link.download = `extracted_data_${new Date().getTime()}.csv`;
+                                    link.click();
+                                  }}
+                                  className="flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-600 shadow-lg shadow-emerald-500/30"
+                                >
+                                  <HardDrive size={18} />
+                                  Download CSV
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {currentSection === "viewer" && (
-                  <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-                    <aside className="rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-6 shadow-2xl shadow-black/5">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
-                        <Sparkles size={14} />
-                        Live Review
-                      </div>
-                      <h3 className="mt-4 text-xl font-bold text-[var(--text-strong)]">Recent document stream</h3>
-                      <p className="mt-2 text-sm leading-6 text-[var(--text-soft)]">
-                        Pick any uploaded PDF, jump to the newest file, and review changes without going back to the library.
-                      </p>
-
-                      <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                        <div className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel)] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Latest upload</p>
-                          <p className="mt-2 truncate text-sm font-bold text-[var(--text-strong)]">
-                            {latestDocument?.filename || "No documents yet"}
-                          </p>
-                          <p className="mt-1 text-xs text-[var(--text-soft)]">
-                            {latestDocument ? formatRelativeTime(latestDocument.uploaded_at) : "Upload a PDF to begin"}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel)] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Current file</p>
-                          <p className="mt-2 truncate text-sm font-bold text-[var(--text-strong)]">
-                            {selectedDocument?.filename || "Nothing selected"}
-                          </p>
-                          <p className="mt-1 text-xs text-[var(--text-soft)]">
-                            {selectedDocument ? formatBytes(selectedDocument.size_bytes) : "Choose from the stream list"}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel)] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Live sync</p>
-                          <p className="mt-2 text-sm font-bold text-[var(--text-strong)]">{sseConnected ? "Connected" : "Waiting"}</p>
-                          <p className="mt-1 text-xs text-[var(--text-soft)]">
-                            {sseConnected ? "Workspace refresh is live." : "Reconnect to resume live updates."}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 flex gap-3">
-                        <button
-                          type="button"
-                          onClick={() => latestDocument && handleSelectDocument(latestDocument)}
-                          disabled={!latestDocument}
-                          className="flex-1 rounded-2xl bg-[var(--button-primary-bg)] px-4 py-3 text-sm font-bold text-[var(--button-primary-text)] transition hover:bg-[var(--button-primary-hover)] disabled:opacity-50"
-                        >
-                          Open latest upload
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => navigateTo("library")}
-                          className="rounded-2xl border border-[var(--button-secondary-border)] bg-[var(--button-secondary-bg)] px-4 py-3 text-sm font-bold text-[var(--button-secondary-text)] transition hover:bg-[var(--button-secondary-hover)]"
-                        >
-                          Library
-                        </button>
-                      </div>
-
-                      <div className="mt-6 space-y-3">
-                        {recentDocuments.length > 0 ? (
-                          recentDocuments.slice(0, 8).map((doc) => {
-                            const isActive = selectedDocument?.key === doc.key;
-                            return (
-                              <button
-                                key={doc.key}
-                                type="button"
-                                onClick={() => handleSelectDocument(doc)}
-                                className={`w-full rounded-2xl border p-4 text-left transition ${
-                                  isActive
-                                    ? "border-[var(--accent)] bg-[var(--accent-soft)]"
-                                    : "border-[var(--workspace-border)] bg-[var(--panel)] hover:bg-[var(--panel-muted)]"
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-[var(--text-strong)]">{doc.filename}</p>
-                                    <p className="mt-1 text-xs text-[var(--text-soft)]">
-                                      {doc.uploaded_by_name || doc.uploaded_by || "Unknown uploader"}
-                                    </p>
-                                  </div>
-                                  <span className="shrink-0 rounded-full bg-[var(--workspace-input)] px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-soft)]">
-                                    {formatBytes(doc.size_bytes)}
-                                  </span>
-                                </div>
-                                <p className="mt-3 text-xs text-[var(--text-soft)]">{formatTimestamp(doc.uploaded_at)}</p>
-                              </button>
-                            );
-                          })
-                        ) : (
-                          <div className="rounded-2xl border border-dashed border-[var(--workspace-border)] bg-[var(--panel)] p-6 text-center text-sm text-[var(--text-soft)]">
-                            Upload a PDF and it will appear here for quick review.
-                          </div>
-                        )}
-                      </div>
-                    </aside>
-
-                    <div className="space-y-6">
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <div className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-5 shadow-xl shadow-black/5">
+                  <div className={`grid gap-6 ${isChatOpen ? "xl:grid-cols-[minmax(0,1fr)_380px]" : "grid-cols-1"} min-h-[calc(100vh-8rem)] xl:h-[calc(100vh-8rem)]`}>
+                    <div className="flex flex-col gap-6 overflow-hidden">
+                      <div className="flex flex-shrink-0 gap-8 overflow-x-auto rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-4 shadow-xl shadow-black/5">
+                        <div className="min-w-[120px]">
                           <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Selected file</p>
-                          <p className="mt-2 truncate text-base font-bold text-[var(--text-strong)]">
-                            {selectedDocument?.filename || "No file selected"}
-                          </p>
+                          <p className="mt-1 truncate text-sm font-bold text-[var(--text-strong)]">{selectedDocument?.filename || "No file selected"}</p>
                         </div>
-                        <div className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-5 shadow-xl shadow-black/5">
+                        <div className="min-w-[120px]">
                           <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Uploaded</p>
-                          <p className="mt-2 text-base font-bold text-[var(--text-strong)]">
-                            {selectedDocument ? formatTimestamp(selectedDocument.uploaded_at) : "Not available"}
-                          </p>
+                          <p className="mt-1 text-sm font-bold text-[var(--text-strong)]">{selectedDocument ? formatTimestamp(selectedDocument.uploaded_at) : "Not available"}</p>
                         </div>
-                        <div className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-5 shadow-xl shadow-black/5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Uploaded by</p>
-                          <p className="mt-2 truncate text-base font-bold text-[var(--text-strong)]">
-                            {selectedDocument?.uploaded_by_name || selectedDocument?.uploaded_by || "Unknown uploader"}
-                          </p>
+                        <div className="min-w-[120px]">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">AI status</p>
+                          <p className="mt-1 text-sm font-bold text-[var(--text-strong)]">{formatAiStatus(selectedDocument?.ai_index_status)}</p>
                         </div>
                       </div>
 
-                      <div className="h-[calc(100vh-18rem)] overflow-hidden rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--viewer-bg)] shadow-2xl shadow-black/5">
+                      <div className="flex-1 overflow-hidden min-h-[500px] xl:min-h-0 rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--viewer-bg)] shadow-2xl shadow-black/5">
                         {selectedDocument ? (
                           <Suspense fallback={<div className="flex h-full items-center justify-center text-[var(--text-soft)]">Loading PDF...</div>}>
-                            <PdfViewer url={`${API_BASE_URL}/pdf/stream/${encodeURIComponent(selectedDocument.filename)}`} />
+                            <PdfViewer url={ `${API_BASE_URL}/pdf/stream/${encodeURIComponent(selectedDocument.filename)}`} />
                           </Suspense>
                         ) : (
                           <div className="flex h-full flex-col items-center justify-center text-[var(--text-soft)]">
                             <Shield size={48} className="mb-4 opacity-20" />
-                            <p>Select a document from the stream list to begin review.</p>
+                            <p>Select a document from the library to begin review.</p>
+                            <button onClick={() => navigateTo("library")} className="mt-4 rounded-xl bg-[var(--button-primary-bg)] px-4 py-2 text-sm font-bold text-[var(--button-primary-text)] transition hover:bg-[var(--button-primary-hover)]">Go to Library</button>
                           </div>
                         )}
                       </div>
                     </div>
+
+                    {isChatOpen && (
+                      <div className="flex flex-col overflow-hidden min-h-[500px] xl:min-h-0">
+                        <div className="flex flex-1 flex-col overflow-hidden rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] shadow-2xl shadow-black/5">
+                          <div className="flex items-center justify-between border-b border-[var(--workspace-divider)] px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <Bot size={18} className="text-[var(--accent)]" />
+                              <h3 className="text-lg font-bold text-[var(--text-strong)]">AI Insights</h3>
+                            </div>
+                            <button onClick={() => setIsChatOpen(false)} className="rounded-lg p-2 text-[var(--text-soft)] hover:bg-[var(--workspace-hover)] hover:text-[var(--text-strong)] transition-colors">
+                              <X size={18} />
+                            </button>
+                          </div>
+                          <div className="flex-1 overflow-hidden p-0">
+                            {selectedDocument ? (
+                              <ChatAI docKey={selectedDocument.key} title="Document AI" className="h-full !border-0 !rounded-none shadow-none" />
+                            ) : (
+                              <ChatAI title="Workspace Agent" className="h-full !border-0 !rounded-none shadow-none" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -763,16 +985,46 @@ export default function Workspace() {
         }}
       />
 
-      <div className="fixed right-8 bottom-8 z-[100] flex flex-col gap-3">
+      <div className="fixed right-8 bottom-8 z-[100] flex flex-col items-end gap-4">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="animate-in slide-in-from-right rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel-solid)] px-6 py-4 shadow-2xl shadow-black/10 duration-300"
+            className="animate-in slide-in-from-right rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel-solid)] px-6 py-4 shadow-2xl shadow-black/10 duration-300 w-80"
           >
             <p className="mb-1 text-xs font-black uppercase tracking-widest text-[var(--accent)]">{toast.title}</p>
             <p className="text-sm text-[var(--text-strong)]">{toast.detail}</p>
           </div>
         ))}
+
+        {/* Global Floating AI Modal */}
+        {isChatOpen && currentSection !== "viewer" && (
+          <div className="animate-in slide-in-from-bottom-4 mb-2 flex h-[500px] w-[380px] flex-col overflow-hidden rounded-[2.5rem] border border-[var(--workspace-border)] bg-[var(--panel-solid)] shadow-2xl shadow-black/20">
+            <div className="flex items-center justify-between border-b border-[var(--workspace-divider)] px-6 py-4">
+              <div className="flex items-center gap-2">
+                <Bot size={18} className="text-[var(--accent)]" />
+                <h3 className="text-lg font-bold text-[var(--text-strong)]">Workspace Agent</h3>
+              </div>
+              <button onClick={() => setIsChatOpen(false)} className="rounded-lg p-2 text-[var(--text-soft)] hover:bg-[var(--workspace-hover)] hover:text-[var(--text-strong)] transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden p-0">
+              <ChatAI title="Workspace Agent" className="h-full !border-0 !rounded-none shadow-none" />
+            </div>
+          </div>
+        )}
+
+        {/* Floating AI Action Button */}
+        {!(isChatOpen && currentSection === "viewer") && (
+          <button
+            type="button"
+            onClick={() => setIsChatOpen((prev) => !prev)}
+            className="group flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[var(--accent)] to-cyan-600 text-white shadow-xl shadow-[var(--accent)]/30 transition-transform hover:scale-110 active:scale-95"
+            aria-label="Toggle AI Assistant"
+          >
+            {isChatOpen ? <X size={24} /> : <Bot size={24} className="transition-transform group-hover:scale-110" />}
+          </button>
+        )}
       </div>
 
       {isCommandPaletteOpen && (

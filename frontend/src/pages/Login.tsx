@@ -1,4 +1,4 @@
-﻿import { 
+import { 
   ArrowRight, 
   Eye, 
   EyeOff, 
@@ -12,6 +12,7 @@
   RefreshCcw 
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { AxiosError } from "axios";
 
 import api from "../api/axios";
 import ThemeToggle from "../components/ThemeToggle";
@@ -52,7 +53,7 @@ export default function Login() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
+  const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,6 +67,9 @@ export default function Login() {
     setView(next);
     setMessage(null);
     setPassword("");
+    if (next !== "verify" && next !== "invite" && next !== "reset") {
+      setCode("");
+    }
   };
 
   const handleAction = async (action: () => Promise<unknown>) => {
@@ -79,8 +83,9 @@ export default function Login() {
         setView("login");
         setMessage("Success. You can now sign in.");
       }
-    } catch (err: any) {
-      setMessage(err.response?.data?.msg || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      const axiosError = err as AxiosError<{ msg?: string }>;
+      setMessage(axiosError.response?.data?.msg || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -89,8 +94,10 @@ export default function Login() {
   const submit = () => {
     if (view === "login") void handleAction(() => login(email, password));
     else if (view === "signup") void handleAction(() => api.post("/auth/start-signup", { name, email }));
-    else if (view === "verify") void handleAction(() => api.post("/auth/complete-signup", { name, email, otp, password }));
+    else if (view === "verify") void handleAction(() => api.post("/auth/complete-signup", { name, email, otp: code, password }));
+    else if (view === "invite") void handleAction(() => api.post("/auth/verify-invite", { name, email, invite_code: code, password }));
     else if (view === "forgot") void handleAction(() => api.post("/auth/forgot-password", { email }));
+    else if (view === "reset") void handleAction(() => api.post("/auth/reset-password", { email, reset_code: code, password }));
   };
 
   return (
@@ -170,88 +177,93 @@ export default function Login() {
               </div>
             )}
 
-            <div className="space-y-5">
-              {["signup", "verify", "invite"].includes(view) && (
+            <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
+              <div className="space-y-5">
+                {["signup", "verify", "invite"].includes(view) && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">Full Name</label>
+                    <div className="relative group">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
+                      <input 
+                        className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
+                        placeholder="Ananya Sharma"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">Full Name</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">Email Address</label>
                   <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
                     <input 
                       className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
-                      placeholder="Ananya Sharma"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      placeholder="name@company.com"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">Email Address</label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
-                  <input 
-                    className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
-                    placeholder="name@company.com"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
+                {(view === "verify" || view === "invite" || view === "reset") && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">
+                      {view === "verify" ? "Verification Code" : view === "invite" ? "Invitation Code" : "Reset Code"}
+                    </label>
+                    <div className="relative">
+                      <Ticket className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={18} />
+                      <input 
+                        className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 text-center text-lg font-bold tracking-[0.5em] text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
+                        maxLength={6}
+                        placeholder="000000"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {(view === "login" || view === "verify" || view === "invite" || view === "reset") && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center px-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Password</label>
+                      {view === "login" && (
+                        <button type="button" onClick={() => switchView("forgot")} className="text-[10px] font-bold text-[var(--accent)] hover:underline underline-offset-4 uppercase">Forgot?</button>
+                      )}
+                    </div>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
+                      <input 
+                        className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 pr-12 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {view === "verify" && (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">Verification Code</label>
-                  <div className="relative">
-                    <Ticket className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={18} />
-                    <input 
-                      className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 text-center text-lg font-bold tracking-[0.5em] text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
-                      maxLength={6}
-                      placeholder="000000"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {(view === "login" || view === "verify" || view === "invite" || view === "reset") && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Password</label>
-                    {view === "login" && (
-                      <button onClick={() => switchView("forgot")} className="text-[10px] font-bold text-[var(--accent)] hover:underline underline-offset-4 uppercase">Forgot?</button>
-                    )}
-                  </div>
-                  <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
-                    <input 
-                      className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 pr-12 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <button 
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={submit}
-              disabled={loading}
-              className="group mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--button-primary-bg)] py-4 text-sm font-bold text-[var(--button-primary-text)] shadow-xl shadow-[var(--accent)]/20 transition-all hover:bg-[var(--button-primary-hover)] disabled:opacity-50"
-            >
-              {loading ? <RefreshCcw className="animate-spin" size={18} /> : primaryLabelMap[view]}
-              {!loading && <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />}
-            </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="group mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--button-primary-bg)] py-4 text-sm font-bold text-[var(--button-primary-text)] shadow-xl shadow-[var(--accent)]/20 transition-all hover:bg-[var(--button-primary-hover)] disabled:opacity-50"
+              >
+                {loading ? <RefreshCcw className="animate-spin" size={18} /> : primaryLabelMap[view]}
+                {!loading && <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />}
+              </button>
+            </form>
 
             <div className="mt-8 border-t border-[var(--workspace-divider)] pt-6 text-center">
               {view === "login" ? (

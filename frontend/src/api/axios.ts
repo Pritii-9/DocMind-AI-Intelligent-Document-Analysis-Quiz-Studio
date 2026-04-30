@@ -26,4 +26,41 @@ api.interceptors.response.use(
   }
 );
 
+export interface AIQueryRequest {
+  question: string;
+  doc_key?: string;
+}
+
+export interface AIQueryResponse {
+  answer: string;
+  matches?: Array<{
+    chunk_index: number;
+    score: number;
+    text_preview: string;
+  }>;
+}
+
+export interface AICommandRequest {
+  query: string;
+}
+
+export interface AICommandResponse {
+  response: string;
+}
+
+export async function aiQuery(data: AIQueryRequest): Promise<AIQueryResponse> {
+  const response = await api.post<AIQueryResponse>("/ai/query", data);
+  return response.data;
+}
+
+export async function aiCommand(data: AICommandRequest): Promise<AICommandResponse> {
+  const response = await api.post<AICommandResponse>("/ai/command", data);
+  return response.data;
+}
+
+export async function aiIngest(docKey: string): Promise<{msg: string; chunk_count?: number}> {
+  const response = await api.post<{msg: string; chunk_count?: number}>("/ai/ingest/" + encodeURIComponent(docKey));
+  return response.data;
+}
+
 export default api;

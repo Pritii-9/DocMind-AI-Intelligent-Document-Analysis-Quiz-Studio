@@ -10,13 +10,13 @@ from pymongo.errors import PyMongoError
 from extensions import jwt, mail
 from routes.auth import auth_bp
 from routes.pdf import pdf_bp
+from routes.ai import ai_bp
 
 load_dotenv()
 
 
-def _get_cors_origins() -> list[str]:
-    raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173")
-    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+def _get_cors_origins() -> str:
+    return "*"
 
 
 def _create_mongo_client() -> MongoClient:
@@ -61,6 +61,14 @@ def create_app():
     app.config["AWS_ACCESS_KEY"] = os.getenv("AWS_ACCESS_KEY")
     app.config["AWS_SECRET_KEY"] = os.getenv("AWS_SECRET_KEY")
     app.config["S3_BUCKET_NAME"] = os.getenv("S3_BUCKET_NAME")
+    app.config["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+    app.config["GROQ_API_BASE_URL"] = os.getenv("GROQ_API_BASE_URL", "https://api.groq.com/openai/v1")
+    app.config["GROQ_CHAT_MODEL"] = os.getenv("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile")
+    app.config["GROQ_EMBEDDING_MODEL"] = os.getenv("GROQ_EMBEDDING_MODEL")
+    app.config["GROQ_TIMEOUT_SECONDS"] = int(os.getenv("GROQ_TIMEOUT_SECONDS", "90"))
+    app.config["MONGO_VECTOR_INDEX_NAME"] = os.getenv("MONGO_VECTOR_INDEX_NAME", "embeddings_vector_index")
+    app.config["MONGO_VECTOR_PATH"] = os.getenv("MONGO_VECTOR_PATH", "embedding")
+    app.config["AI_AUTO_INGEST_UPLOADS"] = os.getenv("AI_AUTO_INGEST_UPLOADS", "true").lower() == "true"
 
     mongo = _create_mongo_client()
     app.mongo_client = mongo
@@ -68,6 +76,7 @@ def create_app():
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(pdf_bp, url_prefix="/pdf")
+    app.register_blueprint(ai_bp, url_prefix="/ai")
 
     @app.get("/health")
     def health():
@@ -90,7 +99,7 @@ def create_app():
         return jsonify({"msg": "Invalid access token", "error": err}), 401
 
     @jwt.expired_token_loader
-    def expired_token_callback(_, __):
+    def expired_token_loader(_, __):
         return jsonify({"msg": "Session expired. Please login again."}), 401
 
     return app

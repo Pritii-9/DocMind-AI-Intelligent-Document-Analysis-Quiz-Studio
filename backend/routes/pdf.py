@@ -4,7 +4,7 @@ import queue
 import re
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import unquote
 
 from botocore.exceptions import ClientError
@@ -70,6 +70,35 @@ def _document_collection():
     return current_app.db.pdfs
 
 
+def _normalize_datetime_value(value):
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value
+    if isinstance(value, str):
+        for parser in (datetime.fromisoformat,):
+            try:
+                return parser(value.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+    return None
+
+
+def _datetime_sort_key(value) -> float:
+    normalized = _normalize_datetime_value(value)
+    if normalized is None:
+        return float("-inf")
+    if normalized.tzinfo is None:
+        normalized = normalized.replace(tzinfo=timezone.utc)
+    else:
+        normalized = normalized.astimezone(timezone.utc)
+    return normalized.timestamp()
+
+
+def _safe_uploaded_sort_value(document: dict):
+    return _datetime_sort_key(document.get("uploaded_at"))
+
+
 def _sync_documents_from_s3():
     s3_client = get_s3_client()
     prefix = _workspace_prefix()
@@ -122,37 +151,45 @@ def _is_key_in_workspace(key: str) -> bool:
 
 
 def _serialize_document(document: dict) -> dict:
+    def _serialize_datetime(value):
+        normalized = _normalize_datetime_value(value)
+        if normalized is not None:
+            return normalized.isoformat()
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
+        return str(value)
+
     return {
         "id": str(document.get("_id")),
         "filename": document.get("filename"),
         "key": document.get("key"),
         "size_bytes": int(document.get("size_bytes") or 0),
-        "uploaded_at": document.get("uploaded_at").isoformat() if document.get("uploaded_at") else None,
-        "last_accessed_at": document.get("last_accessed_at").isoformat()
-        if document.get("last_accessed_at")
-        else None,
+        "uploaded_at": _serialize_datetime(document.get("uploaded_at")),
+        "last_accessed_at": _serialize_datetime(document.get("last_accessed_at")),
         "uploaded_by": document.get("uploaded_by"),
         "uploaded_by_name": document.get("uploaded_by_name"),
+        "ai_index_status": document.get("ai_index_status", "pending"),
+        "ai_indexed_at": _serialize_datetime(document.get("ai_indexed_at")),
+        "ai_chunk_count": int(document.get("ai_chunk_count") or 0),
+        "ai_error": document.get("ai_error"),
     }
 
 
 def _recent_activity(limit: int = 6) -> list[dict]:
     activity = []
 
-    docs = list(
-        _document_collection()
-        .find(_workspace_query())
-        .sort("uploaded_at", -1)
-        .limit(limit)
-    )
+    docs = list(_document_collection().find(_workspace_query()).limit(limit * 3))
+    docs.sort(key=_safe_uploaded_sort_value, reverse=True)
+    docs = docs[:limit]
     for document in docs:
+        uploaded_at = _serialize_document(document).get("uploaded_at")
         activity.append(
             {
                 "type": "upload",
                 "title": f"{document.get('filename')} uploaded",
-                "timestamp": document.get("uploaded_at").isoformat()
-                if document.get("uploaded_at")
-                else None,
+                "timestamp": uploaded_at,
                 "actor": document.get("uploaded_by_name") or document.get("uploaded_by"),
                 "meta": {
                     "size_bytes": int(document.get("size_bytes") or 0),
@@ -164,15 +201,20 @@ def _recent_activity(limit: int = 6) -> list[dict]:
         current_app.db.users.find(
             {"$or": [{"email": _workspace_owner()}, {"workspace_owner": _workspace_owner()}]}
         )
-        .sort("created_at", -1)
-        .limit(limit)
+        .limit(limit * 3)
     )
+    members.sort(
+        key=lambda item: _datetime_sort_key(item.get("created_at")),
+        reverse=True,
+    )
+    members = members[:limit]
     for member in members:
+        created_at = _normalize_datetime_value(member.get("created_at"))
         activity.append(
             {
                 "type": "member",
                 "title": f"{member.get('name', 'Team member')} joined workspace",
-                "timestamp": member.get("created_at").isoformat() if member.get("created_at") else None,
+                "timestamp": created_at.isoformat() if created_at else None,
                 "actor": member.get("email"),
                 "meta": {
                     "role": member.get("role", "user"),
@@ -190,6 +232,100 @@ def check_s3_config():
     if not _bucket():
         return jsonify({"msg": "S3_BUCKET_NAME missing from environment"}), 500
 
+
+@pdf_bp.route("/inject-sample", methods=["POST"])
+@jwt_required()
+def inject_sample():
+    workspace_owner = _workspace_owner()
+    now = datetime.utcnow()
+    filename = "SafeUp_Sample_Confidential_Document.pdf"
+    key = _full_s3_key(f"{int(time.time())}-{filename}")
+    s3_client = get_s3_client()
+    
+    sample_pdf_bytes = b'''%PDF-1.4
+1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj
+2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj
+3 0 obj <</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 612 792] /Contents 5 0 R>> endobj
+4 0 obj <</Font <</F1 6 0 R>>>> endobj
+5 0 obj <</Length 165>> stream
+BT
+/F1 24 Tf
+100 700 Td
+(SafeUp Workspace Enterprise Demo) Tj
+/F1 12 Tf
+0 -40 Td
+(This is a secure, dummy document generated automatically for your testing.) Tj
+0 -20 Td
+(It contains sample data about enterprise security, encryption keys, and SOC2 compliance.) Tj
+0 -20 Td
+(Total Invoice Amount: $1,450.00 USD) Tj
+0 -20 Td
+(Effective Date: October 1, 2026) Tj
+ET
+endstream endobj
+6 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Helvetica>> endobj
+xref
+0 7
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000219 00000 n
+0000000256 00000 n
+0000000472 00000 n
+trailer <</Size 7 /Root 1 0 R>>
+startxref
+560
+%%EOF'''
+
+    try:
+        s3_client.put_object(
+            Bucket=_bucket(),
+            Key=key,
+            Body=sample_pdf_bytes,
+            ContentType="application/pdf"
+        )
+        
+        claims = get_jwt()
+        uploaded_by_name = claims.get("name", "Workspace Owner")
+        
+        doc_dict = {
+            "workspace_owner": workspace_owner,
+            "filename": filename,
+            "key": key,
+            "size_bytes": len(sample_pdf_bytes),
+            "uploaded_at": now,
+            "last_accessed_at": now,
+            "uploaded_by": get_jwt_identity(),
+            "uploaded_by_name": uploaded_by_name,
+            "ai_index_status": "pending",
+        }
+        
+        result = _document_collection().insert_one(doc_dict)
+        doc_dict["_id"] = result.inserted_id
+        
+        from services.ai_service import maybe_ingest_document
+        
+        def background_ingest():
+            try:
+                maybe_ingest_document(workspace_owner, str(result.inserted_id))
+                _emit_sse_event(workspace_owner, {"type": "ai_index_complete", "document_id": str(result.inserted_id)})
+            except Exception as e:
+                current_app.logger.error(f"Sample background ingest failed: {e}")
+                _emit_sse_event(workspace_owner, {"type": "ai_index_error", "document_id": str(result.inserted_id)})
+
+        threading.Thread(target=background_ingest, daemon=True).start()
+        
+        _emit_sse_event(
+            workspace_owner,
+            {
+                "type": "document_uploaded",
+                "document": _serialize_document(doc_dict),
+            },
+        )
+        return jsonify({"msg": "Sample injected successfully", "document": _serialize_document(doc_dict)}), 200
+    except Exception as e:
+        return jsonify({"msg": "Failed to inject sample", "error": str(e)}), 500
 
 @pdf_bp.route("/init-upload", methods=["POST"])
 @jwt_required()
@@ -286,6 +422,10 @@ def complete_multipart():
                     "last_accessed_at": None,
                     "uploaded_by": get_jwt_identity(),
                     "uploaded_by_name": claims.get("name", "User"),
+                    "ai_index_status": "pending",
+                    "ai_indexed_at": None,
+                    "ai_chunk_count": 0,
+                    "ai_error": None,
                 }
             },
             upsert=True,
@@ -302,9 +442,22 @@ def complete_multipart():
             },
         })
 
+        if current_app.config.get("AI_AUTO_INGEST_UPLOADS", True):
+            from services.ai_service import trigger_background_ingest
+
+            trigger_background_ingest(
+                current_app._get_current_object(),
+                _workspace_owner(),
+                key,
+            )
+
         return jsonify({"msg": "Upload successful"}), 200
     except ClientError as err:
+        current_app.logger.exception("S3 completion failed")
         return jsonify({"msg": "S3 completion failed", "error": str(err)}), 500
+    except Exception as err:
+        current_app.logger.exception("complete-upload failed")
+        return jsonify({"msg": "Upload completion failed", "error": str(err)}), 500
 
 
 @pdf_bp.route("/list", methods=["GET"])
@@ -312,14 +465,19 @@ def complete_multipart():
 def list_pdfs():
     try:
         if _document_collection().count_documents(_workspace_query()) == 0:
-            _sync_documents_from_s3()
+            try:
+                _sync_documents_from_s3()
+            except ClientError as sync_err:
+                current_app.logger.warning("S3 sync skipped (access error): %s", sync_err)
         documents = list(
-            _document_collection().find(_workspace_query()).sort("uploaded_at", -1)
+            _document_collection().find(_workspace_query())
         )
+        documents.sort(key=_safe_uploaded_sort_value, reverse=True)
         files = [document.get("filename") for document in documents if document.get("filename")]
         return jsonify(files), 200
-    except ClientError as err:
-        return jsonify({"msg": "S3 list failed", "error": str(err)}), 500
+    except Exception as err:
+        current_app.logger.exception("PDF list failed")
+        return jsonify({"msg": "PDF list failed", "error": str(err)}), 500
 
 
 @pdf_bp.route("/library", methods=["GET"])
@@ -327,13 +485,18 @@ def list_pdfs():
 def library():
     try:
         if _document_collection().count_documents(_workspace_query()) == 0:
-            _sync_documents_from_s3()
+            try:
+                _sync_documents_from_s3()
+            except ClientError as sync_err:
+                current_app.logger.warning("S3 sync skipped (access error): %s", sync_err)
         documents = list(
-            _document_collection().find(_workspace_query()).sort("uploaded_at", -1)
+            _document_collection().find(_workspace_query())
         )
+        documents.sort(key=_safe_uploaded_sort_value, reverse=True)
         return jsonify([_serialize_document(document) for document in documents]), 200
-    except ClientError as err:
-        return jsonify({"msg": "S3 library sync failed", "error": str(err)}), 500
+    except Exception as err:
+        current_app.logger.exception("PDF library failed")
+        return jsonify({"msg": "PDF library failed", "error": str(err)}), 500
 
 
 @pdf_bp.route("/events", methods=["GET"])
@@ -367,7 +530,10 @@ def overview():
     workspace_owner = _workspace_owner()
     try:
         if _document_collection().count_documents(_workspace_query()) == 0:
-            _sync_documents_from_s3()
+            try:
+                _sync_documents_from_s3()
+            except ClientError as sync_err:
+                current_app.logger.warning("S3 sync skipped (access error): %s", sync_err)
 
         users = list(
             current_app.db.users.find(
@@ -375,13 +541,18 @@ def overview():
             )
         )
         documents = list(_document_collection().find(_workspace_query()))
+        documents.sort(key=_safe_uploaded_sort_value, reverse=True)
 
         active_members = sum(1 for user in users if user.get("is_active", True))
         verified_members = sum(1 for user in users if user.get("verified"))
         total_storage_bytes = sum(int(document.get("size_bytes") or 0) for document in documents)
         last_upload_at = None
         if documents:
-            timestamps = [document.get("uploaded_at") for document in documents if document.get("uploaded_at")]
+            timestamps = [
+                _normalize_datetime_value(document.get("uploaded_at"))
+                for document in documents
+                if _normalize_datetime_value(document.get("uploaded_at"))
+            ]
             if timestamps:
                 last_upload_at = max(timestamps).isoformat()
 
@@ -395,11 +566,7 @@ def overview():
                         "verified_members": verified_members,
                         "last_upload_at": last_upload_at,
                     },
-                    "documents": [_serialize_document(document) for document in sorted(
-                        documents,
-                        key=lambda item: item.get("uploaded_at") or datetime.min,
-                        reverse=True,
-                    )[:6]],
+                    "documents": [_serialize_document(document) for document in documents[:6]],
                     "activity": _recent_activity(),
                 }
             ),
@@ -407,6 +574,9 @@ def overview():
         )
     except ClientError as err:
         return jsonify({"msg": "S3 overview sync failed", "error": str(err)}), 500
+    except Exception as err:
+        current_app.logger.exception("PDF overview failed")
+        return jsonify({"msg": "PDF overview failed", "error": str(err)}), 500
 
 
 @pdf_bp.route("/stream/<path:key>", methods=["GET"])
