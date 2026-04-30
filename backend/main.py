@@ -15,8 +15,13 @@ from routes.ai import ai_bp
 load_dotenv()
 
 
-def _get_cors_origins() -> str:
-    return "*"
+import re
+
+def _get_cors_origins():
+    origins_env = os.getenv("CORS_ORIGINS")
+    if origins_env:
+        return [o.strip() for o in origins_env.split(",")]
+    return re.compile(r".*")
 
 
 def _create_mongo_client() -> MongoClient:
