@@ -20,13 +20,20 @@ DEFAULT_RAG_MATCH_LIMIT = 3
 
 # Lazy-loaded sentence-transformers model (loaded once, reused)
 _embedding_model = None
-_EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+_EMBEDDING_MODEL_NAME = os.getenv("SENTENCE_TRANSFORMERS_MODEL", "all-MiniLM-L6-v2")
+
+# Allow overriding the cache dir via env var so Render can persist the model
+# between deploys using a Render Disk mounted at e.g. /opt/render/project/src/.model_cache
+_MODEL_CACHE_DIR = os.getenv("SENTENCE_TRANSFORMERS_HOME", None)
 
 def _get_embedding_model():
     global _embedding_model
     if _embedding_model is None:
         from sentence_transformers import SentenceTransformer
-        _embedding_model = SentenceTransformer(_EMBEDDING_MODEL_NAME)
+        _embedding_model = SentenceTransformer(
+            _EMBEDDING_MODEL_NAME,
+            cache_folder=_MODEL_CACHE_DIR,
+        )
     return _embedding_model
 
 
