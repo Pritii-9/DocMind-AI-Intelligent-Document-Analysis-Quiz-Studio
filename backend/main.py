@@ -2,8 +2,7 @@ import os
 from datetime import timedelta
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify
-from flask_cors import CORS
+from flask import Flask, jsonify, request, make_response
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
@@ -15,14 +14,6 @@ from routes.ai import ai_bp
 load_dotenv()
 
 
-import re
-
-def _get_cors_origins():
-    origins_env = os.getenv("CORS_ORIGINS")
-    if origins_env:
-        return [o.strip() for o in origins_env.split(",")]
-    return re.compile(r".*")
-
 
 def _create_mongo_client() -> MongoClient:
     timeout_ms = int(os.getenv("MONGO_SERVER_SELECTION_TIMEOUT_MS", "5000"))
@@ -32,16 +23,31 @@ def _create_mongo_client() -> MongoClient:
     )
 
 
+def _add_cors_headers(response):
+    """Echo the requesting origin back — required when credentials are involved."""
+    origin = request.headers.get("Origin", "")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Range"
+    return response
+
+
 def create_app():
     app = Flask(__name__)
 
-    CORS(
-        app,
-        resources={r"/*": {"origins": _get_cors_origins()}},
-        supports_credentials=True,
-        allow_headers=["Content-Type", "Authorization", "Range"],
-        methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-    )
+    @app.after_request
+    def cors_after_request(response):
+        return _add_cors_headers(response)
+
+    @app.before_request
+    def handle_options():
+        if request.method == "OPTIONS":
+            response = make_response()
+            response.status_code = 200
+            return _add_cors_headers(response)
 
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", "dev-secret-change-me")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
