@@ -119,4 +119,7 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    # For local dev, you can still use python main.py
+    # But in production (Render/Docker), Gunicorn will call 'app' directly.
+    port = int(os.getenv("PORT", 5000))
+    app.run(debug=False, host="0.0.0.0", port=port)

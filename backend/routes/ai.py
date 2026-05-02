@@ -43,6 +43,46 @@ def ingest_document_route(document_ref: str):
         return jsonify({"msg": "Document ingestion failed", "error": str(err)}), 500
 
 
+@ai_bp.route("/chat", methods=["POST"])
+@jwt_required()
+def chat_route():
+    data = _json_body()
+    message = (data.get("message") or "").strip()
+    document_ref = (data.get("doc_key") or data.get("doc_id") or "").strip()
+
+    if not message:
+        return jsonify({"msg": "message is required"}), 400
+
+    workspace_owner = _workspace_owner()
+    # If a specific document is referenced, ensure it's indexed
+    document = None
+    if document_ref:
+        document = resolve_document(workspace_owner, document_ref)
+        if not document:
+            return jsonify({"msg": "Document not found"}), 404
+        maybe_ingest_document(workspace_owner, str(document["_id"]))
+        document_key = document.get("key")
+    else:
+        document_key = None
+
+    # Embed the user query
+    query_vector = embed_texts([message])[0]
+    matches = search_similar_chunks(
+        workspace_owner=workspace_owner,
+        query_vector=query_vector,
+        limit=3,
+        document_key=document_key,
+    )
+    answer = build_rag_answer(message, matches)
+    return jsonify({"answer": answer, "matches": [
+        {
+            "chunk_index": m.get("chunk_index"),
+            "score": round(float(m.get("score", 0)), 4),
+            "text_preview": (m.get("text") or "")[:220],
+        }
+        for m in matches
+    ]}), 200
+
 @ai_bp.route("/query", methods=["POST"])
 @jwt_required()
 def query_document():

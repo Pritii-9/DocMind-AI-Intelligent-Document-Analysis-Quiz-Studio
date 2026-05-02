@@ -23,5 +23,6 @@ COPY . .
 # Expose the port your Flask app runs on
 EXPOSE 5000
 
-# Run the application
-CMD ["python", "main.py"]
+# Run the application using Gunicorn for production
+# We use gevent workers to handle long-lived SSE/WebSocket connections
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--worker-class", "gevent", "--timeout", "120", "main:app"]
