@@ -8,10 +8,17 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# Install system dependencies (useful for PDF processing libraries)
+# Install system dependencies (useful for PDF processing and C-extensions)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip and build tools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Copy only the requirements first to leverage Docker cache
 COPY requirements.txt .

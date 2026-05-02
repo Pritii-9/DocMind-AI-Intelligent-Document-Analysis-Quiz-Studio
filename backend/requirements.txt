@@ -9,7 +9,7 @@ requests>=2.32.0,<3.0.0
 pypdf>=5.4.0,<6.0.0
 langchain>=0.3.0,<0.4.0
 langchain-core>=0.3.0,<0.4.0
-langchain-groq>=0.2.0,<0.3.0
+langchain-groq>=0.2.0
 langchain-text-splitters
 langchain-mongodb
 langgraph<0.3.0
