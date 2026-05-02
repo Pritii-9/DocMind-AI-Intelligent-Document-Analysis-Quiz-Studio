@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, make_response
+from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
@@ -23,31 +24,27 @@ def _create_mongo_client() -> MongoClient:
     )
 
 
-def _add_cors_headers(response):
-    """Echo the requesting origin back — required when credentials are involved."""
-    origin = request.headers.get("Origin", "")
-    if origin:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Vary"] = "Origin"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Range"
-    return response
 
 
 def create_app():
     app = Flask(__name__)
 
-    @app.after_request
-    def cors_after_request(response):
-        return _add_cors_headers(response)
+    # Configure CORS properly using the flask-cors extension
+    # We allow the specific Vercel origin provided in the error message, 
+    # plus any origins defined in environment variables.
+    allowed_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+    # Add the specific Vercel domain to ensure it's allowed
+    if "https://pdf-streaming-mbxsiae0w-pritis-projects-057a3b21.vercel.app" not in allowed_origins:
+        allowed_origins.append("https://pdf-streaming-mbxsiae0w-pritis-projects-057a3b21.vercel.app")
 
-    @app.before_request
-    def handle_options():
-        if request.method == "OPTIONS":
-            response = make_response()
-            response.status_code = 200
-            return _add_cors_headers(response)
+    CORS(
+        app,
+        resources={r"/*": {"origins": allowed_origins}},
+        supports_credentials=True,
+        expose_headers=["Content-Range", "Range", "Accept-Ranges"],
+        allow_headers=["Content-Type", "Authorization", "Range"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    )
 
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", "dev-secret-change-me")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
