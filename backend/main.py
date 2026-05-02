@@ -30,12 +30,23 @@ def create_app():
     app = Flask(__name__)
 
     # Configure CORS properly using the flask-cors extension
-    # We allow the specific Vercel origin provided in the error message, 
-    # plus any origins defined in environment variables.
-    allowed_origins = os.getenv("CORS_ORIGINS", "*").split(",")
-    # Add the specific Vercel domain to ensure it's allowed
-    if "https://pdf-streaming-mbxsiae0w-pritis-projects-057a3b21.vercel.app" not in allowed_origins:
-        allowed_origins.append("https://pdf-streaming-mbxsiae0w-pritis-projects-057a3b21.vercel.app")
+    # We allow the specific Vercel origins provided in the error messages.
+    allowed_origins = os.getenv("CORS_ORIGINS", "").split(",")
+    
+    # Specific production and preview URLs from Vercel
+    vercel_urls = [
+        "https://pdf-streaming.vercel.app",
+        "https://pdf-streaming-mbxsiae0w-pritis-projects-057a3b21.vercel.app"
+    ]
+    
+    for url in vercel_urls:
+        if url not in allowed_origins:
+            allowed_origins.append(url)
+            
+    # Clean up empty strings and ensure localhost is included for development
+    allowed_origins = [o for o in allowed_origins if o]
+    if not allowed_origins:
+        allowed_origins = ["http://localhost:5173"]
 
     CORS(
         app,
