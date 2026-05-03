@@ -31,5 +31,5 @@ COPY . .
 EXPOSE 5000
 
 # Run the application using Gunicorn for production
-# We use gevent workers to handle long-lived SSE/WebSocket connections
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--worker-class", "gevent", "--timeout", "120", "main:app"]
+# Bind to the PORT environment variable provided by Render (defaults to 10000 if not set)
+CMD gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --worker-class gevent --timeout 120 main:app
