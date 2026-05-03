@@ -13,7 +13,7 @@
 
 **SafeUp** is a sophisticated, multi-tenant document intelligence platform. It combines secure, authenticated PDF streaming with cutting-edge AI capabilities—featuring an autonomous LangGraph agent for workspace-wide querying and RAG (Retrieval-Augmented Generation) for deep document insights.
 
-[**Explore Features**](#-key-features) • [**Tech Stack**](#-tech-stack) • [**Architecture**](#-architecture) • [**Setup**](#-local-setup)
+[**Live Demo**](https://pdf-streaming.vercel.app/) • [**Explore Features**](#-key-features) • [**Tech Stack**](#-tech-stack) • [**Architecture**](#-architecture) • [**Setup**](#-local-setup)
 
 </div>
 
@@ -115,7 +115,7 @@ graph TD
 
 ---
 
-## 💼 Business Value (CEO View)
+## 💼 Business Value
 SafeUp is a **governance-first** document intelligence platform. It solves the risk of sensitive file leaks by eliminating public S3 URLs and replaces static folders with a **self-aware workspace**. It improves team efficiency by allowing members to talk to their data, reducing "time-to-information" while maintaining enterprise-grade compliance and auditability.
 
 ---
