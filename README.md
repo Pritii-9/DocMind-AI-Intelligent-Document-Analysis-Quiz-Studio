@@ -1,161 +1,125 @@
-# SafeUp
+<div align="center">
 
-SafeUp is a production-style document workspace built with Flask, React, MongoDB, and AWS S3. It supports secure PDF upload, role-based access control, invite-based onboarding, protected streaming, and an executive-friendly operations dashboard.
+# 🔒 SafeUp
+### **Enterprise-Grade AI Document Workspace**
 
-## What makes it resume-ready
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![AWS S3](https://img.shields.io/badge/AWS_S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-AI-blue?style=for-the-badge)](https://langchain-ai.github.io/langgraph/)
 
-- Multi-tenant workspace model with strict workspace isolation for documents and team members
-- JWT-based authentication with admin and member access levels
-- OTP verification for new admins and invite-code activation for workspace members
-- Multipart PDF uploads to S3 for reliability on large files
-- Protected PDF streaming endpoint with authenticated access and byte-range support
-- Document metadata indexing in MongoDB for analytics, recent activity, and dashboard reporting
-- Responsive React dashboard with smooth in-app navigation across overview, library, viewer, and team management
+---
 
-## Product highlights
+**SafeUp** is a sophisticated, multi-tenant document intelligence platform. It combines secure, authenticated PDF streaming with cutting-edge AI capabilities—featuring an autonomous LangGraph agent for workspace-wide querying and RAG (Retrieval-Augmented Generation) for deep document insights.
 
-### Executive Dashboard
-- Total document count, storage footprint, active members, and recent upload visibility
-- Recent activity feed for uploads and workspace onboarding events
-- Quick access to recently uploaded documents
+[**Explore Features**](#-key-features) • [**Tech Stack**](#-tech-stack) • [**Architecture**](#-architecture) • [**Setup**](#-local-setup)
 
-### Document Operations
-- Chunked PDF upload with progress feedback
-- Search and sort document library by name, size, and recency
-- Live secure viewer with page navigation and zoom controls
-- Metadata-backed document cards with upload and last-viewed information
+</div>
 
-### Team Management
-- Invite teammates into a shared workspace
-- Activate or deactivate member accounts
-- Track pending, active, and inactive user states
+## 📸 Preview
 
-### Authentication Flow
-- Sign up for a new admin workspace or sign in with an existing account
-- Verify new admin accounts with email OTP
-- Reset forgotten passwords through email-based recovery codes
+<div align="center">
+  <img src="./screenshots/dashboard.png" width="85%" alt="SafeUp Dashboard & AI Chat" />
+  <br />
+  <em>The intelligent AI workspace featuring real-time document indexing and RAG-powered chat.</em>
+  <br /><br />
+  <img src="./screenshots/login.png" width="85%" alt="SafeUp Login" />
+  <br />
+  <em>A secure, enterprise-grade authentication gateway with multi-tenant isolation.</em>
+</div>
 
-## Architecture
+---
 
-### Backend
-- `backend/main.py`: Flask app factory, JWT/mail setup, CORS, MongoDB connection, and health endpoint with DB ping
-- `backend/routes/auth.py`: registration, OTP verification, login, workspace user management, invite flows
-- `backend/routes/pdf.py`: multipart upload, S3 sync, metadata indexing, analytics endpoints, secure streaming
-- `backend/extensions.py`: JWT, mail, and S3 client setup
+## ✨ Key Features
 
-### Frontend
-- `frontend/src/pages/Login.tsx`: polished auth and onboarding experience
-- `frontend/src/pages/Workspace.tsx`: unified dashboard shell and section navigation
-- `frontend/src/components/Uploader.tsx`: upload workflow with chunk progress
-- `frontend/src/components/PdfViewer.tsx`: protected PDF viewer with controls
-- `frontend/src/components/Sidebar.tsx`: responsive workspace navigation and user context
+### 🧠 AI Intelligence Suite
+- **LangGraph Command Center**: An autonomous agent that understands your entire workspace. Query documents, analyze team activity, and extract insights across multiple files.
+- **Precision RAG**: Deep document understanding using semantic search and local embeddings (all-MiniLM-L6-v2).
+- **Streaming Responses**: Real-time AI output using Server-Sent Events (SSE) for a fluid, chatty experience.
 
-## API highlights
+### 🛡️ Enterprise Security
+- **Authenticated Streaming**: PDFs are never exposed via public URLs. They are streamed directly from S3 using byte-range requests for performance and absolute security.
+- **Multi-Tenant Isolation**: Cryptographically separated workspaces ensure that data and team members are strictly isolated between organizations.
+- **Admin Controls**: Robust invite-based onboarding, account lifecycle management (activate/deactivate), and OTP verification.
 
-### Auth
-- `POST /auth/register` -> create admin account and send OTP
-- `POST /auth/verify-otp` -> verify admin email
-- `POST /auth/login` -> receive JWT access token
-- `POST /auth/forgot-password` -> send reset code by email
-- `POST /auth/reset-password` -> update password with reset code
-- `POST /auth/invite-member` -> create and invite workspace member
-- `POST /auth/verify-invite` -> activate invited member account
-- `GET /auth/users` -> list users in current workspace
-- `POST /auth/users/<user_id>/status` -> activate or deactivate a member
+### 📊 Operations Dashboard
+- **Real-time Analytics**: Monitor storage footprint, document count, and team engagement at a glance.
+- **Live Activity Feed**: Stay updated with workspace events (uploads, invites, joins) as they happen via SSE.
+- **Secure Viewer**: High-performance PDF viewer with zoom, rotation, and authenticated streaming.
 
-### Documents
-- `POST /pdf/init-upload` -> initialize multipart upload
-- `POST /pdf/upload-part` -> upload a file chunk
-- `POST /pdf/complete-upload` -> finalize upload and store metadata
-- `GET /pdf/list` -> list document filenames
-- `GET /pdf/library` -> return document metadata
-- `GET /pdf/overview` -> return dashboard analytics and activity feed
-- `GET /pdf/stream/<filename>` -> stream PDF securely
+---
 
-## Local setup
-
-### Backend
-```bash
-cd backend
-poetry install
-copy ..\.env.example.txt .env
-poetry run python main.py
-```
+## 🛠️ Tech Stack
 
 ### Frontend
-```bash
-cd frontend
-npm install
-set VITE_API_BASE_URL=http://localhost:5000
-npm run dev
-```
-
-Frontend default: `http://localhost:5173`
-Backend default: `http://localhost:5000`
-
-## Docker setup
-
-From the repository root you can build and run the stack with:
-```bash
-docker compose up --build
-```
-
-This starts:
-- `backend` on `http://localhost:5000`
-- `frontend` on `http://localhost:5173`
-- a local `mongo` service for development
-
-If you want the backend to use the local Mongo service, update `backend/.env` to use:
-```env
-MONGO_URI=mongodb://mongo:27017/pdf_stream
-```
-
-## MongoDB Atlas setup
-
-1. Create a MongoDB Atlas cluster.
-2. Create a database user with read/write access.
-3. In Atlas Network Access, allow your current IP address.
-4. Copy the Atlas connection string and place it in `backend/.env` as `MONGO_URI`.
-5. Keep `MONGO_DB_NAME` set to your application database, for example `pdf_stream`.
-6. Restart the backend.
-7. Open `http://localhost:5000/health` and confirm it returns `"database": "connected"`.
-
-Example:
-```env
-MONGO_URI=mongodb+srv://<db_user>:<db_password>@<cluster-name>.mongodb.net/?retryWrites=true&w=majority&appName=SafeUp
-MONGO_DB_NAME=pdf_stream
-MONGO_SERVER_SELECTION_TIMEOUT_MS=5000
-```
-
-## Environment variables
+- **Framework:** React 18 (Vite)
+- **Styling:** Premium Vanilla CSS (Glassmorphism, Dark Mode)
+- **Icons:** Lucide React
+- **State:** React Hooks & SSE Listeners
 
 ### Backend
-- `JWT_SECRET`
-- `JWT_ACCESS_MINUTES`
-- `MONGO_URI`
-- `MONGO_DB_NAME`
-- `MONGO_SERVER_SELECTION_TIMEOUT_MS`
-- `AWS_REGION`
-- `AWS_ACCESS_KEY`
-- `AWS_SECRET_KEY`
-- `S3_BUCKET_NAME`
-- `MAIL_SERVER`
-- `MAIL_PORT`
-- `MAIL_USE_TLS`
-- `MAIL_USERNAME`
-- `MAIL_PASSWORD`
-- `CORS_ORIGINS`
+- **Server:** Flask (Python 3.11+)
+- **WSGI:** Gunicorn + Gevent (for high-concurrency SSE)
+- **Auth:** JWT (flask-jwt-extended)
+- **Storage:** AWS S3 (boto3)
+- **Database:** MongoDB Atlas (pymongo)
+
+### AI & Data
+- **Orchestration:** LangGraph (Stateful Agents)
+- **RAG Pipeline:** LangChain & Sentence Transformers
+- **Embeddings:** all-MiniLM-L6-v2 (Local Execution)
+- **LLM:** Groq Llama 3.3 (High-performance inference)
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph TD
+    User((User)) -->|React + Vite| Frontend[Frontend UI]
+    Frontend -->|JWT Auth| Backend[Flask API]
+    Backend -->|Auth/Team| DB[(MongoDB Atlas)]
+    Backend -->|PDF Storage| S3[AWS S3]
+    Backend -->|RAG / Agent| AI[LangGraph + Groq]
+    AI -->|Vectors| DB
+```
+
+---
+
+## 🚀 Local Setup
+
+### Backend
+1. **Navigate & Install:**
+   ```bash
+   cd backend
+   poetry install
+   ```
+2. **Environment Configuration:**
+   Create a `.env` file based on `.env.example.txt` with your MongoDB, AWS, and Groq keys.
+3. **Launch Server:**
+   ```bash
+   poetry run python main.py
+   ```
 
 ### Frontend
-- `VITE_API_BASE_URL`
+1. **Navigate & Install:**
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. **Launch Dev Server:**
+   ```bash
+   npm run dev
+   ```
 
-## Suggested resume bullets
+---
 
-- Built a secure enterprise document workspace using Flask, React, MongoDB, and AWS S3 with JWT authentication, role-based access control, and tenant-aware data isolation.
-- Implemented multipart PDF uploads and authenticated streaming, improving large-file reliability and secure access for distributed teams.
-- Designed a metadata-driven analytics dashboard for document operations, storage reporting, and recent workspace activity.
-- Added invite-based onboarding, OTP verification, and admin-level team controls to support production-style user lifecycle management.
+## 💼 Business Value (CEO View)
+SafeUp is a **governance-first** document intelligence platform. It solves the risk of sensitive file leaks by eliminating public S3 URLs and replaces static folders with a **self-aware workspace**. It improves team efficiency by allowing members to talk to their data, reducing "time-to-information" while maintaining enterprise-grade compliance and auditability.
 
-## How to explain it to a CEO
+---
 
-SafeUp is a secure internal document platform for teams that need controlled access to sensitive PDFs. It lets administrators onboard team members, upload large documents safely, monitor workspace activity, and provide a clean viewing experience without exposing files publicly. The business value is stronger governance, better operational visibility, and a faster internal workflow for sharing protected documents.
+<div align="center">
+  <sub>Built by **Priti** • © 2026 SafeUp Systems Inc.</sub>
+</div>

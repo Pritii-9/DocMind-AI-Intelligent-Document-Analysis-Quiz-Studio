@@ -34,9 +34,9 @@ def create_app():
     # We allow any vercel.app subdomain and localhost for development.
     # Note: When supports_credentials=True, we cannot use "*".
     
-    # Origins can be a list of strings or regex patterns
+    # Origins can be a list of strings
     allowed_origins = [
-        re.compile(r"^https://.*\.vercel\.app$"),
+        "https://pdf-streaming.vercel.app",
         "http://localhost:5173",
         "http://localhost:3000"
     ]
@@ -139,4 +139,4 @@ if __name__ == "__main__":
     # For local dev, you can still use python main.py
     # But in production (Render/Docker), Gunicorn will call 'app' directly.
     port = int(os.getenv("PORT", 5000))
-    app.run(debug=False, host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=port)

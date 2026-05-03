@@ -229,6 +229,8 @@ def _recent_activity(limit: int = 6) -> list[dict]:
 
 @pdf_bp.before_request
 def check_s3_config():
+    if request.method == "OPTIONS":
+        return
     if not _bucket():
         return jsonify({"msg": "S3_BUCKET_NAME missing from environment"}), 500
 
