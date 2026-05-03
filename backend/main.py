@@ -29,28 +29,27 @@ def _create_mongo_client() -> MongoClient:
 def create_app():
     app = Flask(__name__)
 
+    import re
     # Configure CORS properly using the flask-cors extension
-    # We allow the specific Vercel origins provided in the error messages.
-    allowed_origins = os.getenv("CORS_ORIGINS", "").split(",")
+    # We allow any vercel.app subdomain and localhost for development.
+    # Note: When supports_credentials=True, we cannot use "*".
     
-    # Specific production and preview URLs from Vercel
-    vercel_urls = [
-        "https://pdf-streaming.vercel.app",
-        "https://pdf-streaming-mbxsiae0w-pritis-projects-057a3b21.vercel.app"
+    # Origins can be a list of strings or regex patterns
+    allowed_origins = [
+        re.compile(r"^https://.*\.vercel\.app$"),
+        "http://localhost:5173",
+        "http://localhost:3000"
     ]
     
-    for url in vercel_urls:
-        if url not in allowed_origins:
-            allowed_origins.append(url)
-            
-    # Clean up empty strings and ensure localhost is included for development
-    allowed_origins = [o for o in allowed_origins if o]
-    if not allowed_origins:
-        allowed_origins = ["http://localhost:5173"]
+    # Also add any origins from environment variables
+    env_origins = os.getenv("CORS_ORIGINS", "").split(",")
+    for o in env_origins:
+        if o.strip():
+            allowed_origins.append(o.strip())
 
     CORS(
         app,
-        resources={r"/*": {"origins": allowed_origins}},
+        origins=allowed_origins,
         supports_credentials=True,
         expose_headers=["Content-Range", "Range", "Accept-Ranges"],
         allow_headers=["Content-Type", "Authorization", "Range"],
@@ -120,6 +119,16 @@ def create_app():
     @jwt.expired_token_loader
     def expired_token_loader(_, __):
         return jsonify({"msg": "Session expired. Please login again."}), 401
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # Pass through HTTP errors
+        if hasattr(e, 'code'):
+            return jsonify({"msg": str(e), "error": "HTTP Error"}), e.code
+        
+        # Log the actual error for debugging in Render
+        app.logger.exception("Global error handler caught an exception")
+        return jsonify({"msg": "An internal server error occurred", "error": str(e)}), 500
 
     return app
 
