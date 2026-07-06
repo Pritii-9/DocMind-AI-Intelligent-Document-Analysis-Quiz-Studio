@@ -267,10 +267,16 @@ export default function Login() {
 
             <div className="mt-8 border-t border-[var(--workspace-divider)] pt-6 text-center">
               {view === "login" ? (
-                <p className="text-sm text-[var(--text-soft)]">
-                  Need a workspace?{" "}
-                  <button onClick={() => switchView("signup")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Create account</button>
-                </p>
+                <div className="space-y-3">
+                  <p className="text-sm text-[var(--text-soft)]">
+                    Need a workspace?{" "}
+                    <button type="button" onClick={() => switchView("signup")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Create account</button>
+                  </p>
+                  <p className="text-sm text-[var(--text-soft)]">
+                    Have an invite code?{" "}
+                    <button type="button" onClick={() => switchView("invite")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Join workspace</button>
+                  </p>
+                </div>
               ) : (
                 <button onClick={() => switchView("login")} className="text-sm font-bold text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors inline-flex items-center gap-2 mx-auto">
                   Back to login

@@ -25,9 +25,9 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean; onCl
 
     try {
       const response = await api.post("/auth/invite-member", { name, email });
-      setMessage(`Invitation created successfully. Code: ${response.data.code}`);
-      resetState();
-      onClose();
+      setMessage(`Success! Give them this Code: ${response.data.code}`);
+      setName("");
+      setEmail("");
     } catch (err) {
       const fallback = "Failed to send invitation.";
       if (typeof err === "object" && err !== null && "response" in err) {
