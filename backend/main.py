@@ -38,8 +38,7 @@ def create_app():
     allowed_origins = [
         "https://pdf-streaming.vercel.app",
         "http://localhost:5173",
-        "http://localhost:3000",
-        re.compile(r"https://.*\.vercel\.app$")
+        "http://localhost:3000"
     ]
     
     # Also add any origins from environment variables

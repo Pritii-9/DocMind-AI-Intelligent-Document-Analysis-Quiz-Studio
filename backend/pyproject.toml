@@ -18,12 +18,10 @@ dependencies = [
     "pypdf (>=5.4.0,<6.0.0)",
     "langchain (>=0.3.0,<0.4.0)",
     "langchain-core (>=0.3.0,<0.4.0)",
-    "pymupdf",
     "langchain-groq",
     "langchain-text-splitters",
     "langchain-mongodb",
-    "sentence-transformers",
-    "tiktoken",
+
     "langgraph (<0.3.0)",
     "langgraph-checkpoint-mongodb (<0.3.0)",
     "gunicorn (>=25.3.0,<26.0.0)",

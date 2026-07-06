@@ -14,9 +14,7 @@ langchain-text-splitters
 langchain-mongodb
 langgraph<0.3.0
 langgraph-checkpoint-mongodb<0.3.0
-sentence-transformers
-tiktoken
-pymupdf
+
 gunicorn>=21.0.0
 gevent>=23.0.0
 werkzeug>=3.0.0

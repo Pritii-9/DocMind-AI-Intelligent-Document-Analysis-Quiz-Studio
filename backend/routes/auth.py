@@ -48,8 +48,8 @@ def _generate_numeric_code():
     return f"{secrets.randbelow(900000) + 100000}"
 
 
-def _admin_scope_filter(admin_email: str):
-    return {"$or": [{"email": admin_email}, {"invited_by": admin_email}]}
+def _admin_scope_filter(workspace_owner: str):
+    return {"$or": [{"email": workspace_owner}, {"workspace_owner": workspace_owner}]}
 
 
 def _send_verification_email(email: str, otp: str):
@@ -329,8 +329,9 @@ def get_all_users():
         return jsonify({"msg": "Admin access required"}), 403
 
     admin_email = get_jwt_identity()
+    admin_workspace = claims.get("workspace_owner") or admin_email
     users_collection = current_app.db.users
-    query = _admin_scope_filter(admin_email)
+    query = _admin_scope_filter(admin_workspace)
     all_users = list(
         users_collection.find(
             query,
@@ -360,6 +361,7 @@ def invite_member():
     name = (data.get("name") or "").strip()
     email = _normalize_email(data.get("email", ""))
     admin_email = get_jwt_identity()
+    admin_workspace = claims.get("workspace_owner") or admin_email
 
     if not name:
         return jsonify({"msg": "Name is required"}), 400
@@ -382,7 +384,7 @@ def invite_member():
             "is_active": True,
             "invite_code": invite_code,
             "invited_by": admin_email,
-            "workspace_owner": admin_email,
+            "workspace_owner": admin_workspace,
             "created_at": datetime.utcnow(),
         }
     )
@@ -391,7 +393,7 @@ def invite_member():
     try:
         from routes.pdf import _emit_sse_event
 
-        _emit_sse_event(admin_email, {
+        _emit_sse_event(admin_workspace, {
             "type": "member",
             "title": f"{name} was invited",
             "actor": admin_email,
@@ -471,8 +473,9 @@ def toggle_user_status(user_id):
         return jsonify({"msg": "Invalid user id"}), 400
 
     admin_email = get_jwt_identity()
+    admin_workspace = claims.get("workspace_owner") or admin_email
     users_collection = current_app.db.users
-    user = users_collection.find_one({"_id": ObjectId(user_id), "invited_by": admin_email})
+    user = users_collection.find_one({"_id": ObjectId(user_id), "workspace_owner": admin_workspace})
     if not user:
         return jsonify({"msg": "User not found in your workspace"}), 404
 
