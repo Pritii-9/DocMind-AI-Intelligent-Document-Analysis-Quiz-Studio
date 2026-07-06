@@ -3,6 +3,7 @@ import secrets
 import string
 from datetime import datetime, timedelta
 
+import threading
 from bson import ObjectId
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required
@@ -52,10 +53,19 @@ def _admin_scope_filter(workspace_owner: str):
     return {"$or": [{"email": workspace_owner}, {"workspace_owner": workspace_owner}]}
 
 
+def _send_email_async(app, msg):
+    def send():
+        with app.app_context():
+            try:
+                mail.send(msg)
+            except Exception as e:
+                app.logger.error(f"Async email failed: {e}")
+    threading.Thread(target=send, daemon=True).start()
+
 def _send_verification_email(email: str, otp: str):
     msg = Message("Verify your account", recipients=[email])
     msg.body = f"Your OTP is: {otp}. It expires in 10 minutes."
-    mail.send(msg)
+    _send_email_async(current_app._get_current_object(), msg)
 
 
 @auth_bp.route("/start-signup", methods=["POST"])
@@ -200,7 +210,7 @@ def register():
     try:
         msg = Message("Verify your account", recipients=[email])
         msg.body = f"Your OTP is: {otp}. It expires in 10 minutes."
-        mail.send(msg)
+        _send_email_async(current_app._get_current_object(), msg)
     except Exception:
         return jsonify({"msg": "User created, but failed to send OTP."}), 502
 
@@ -279,7 +289,7 @@ def forgot_password():
             f"Hello {user.get('name', 'there')}, your password reset code is {reset_code}. "
             "It expires in 10 minutes."
         )
-        mail.send(msg)
+        _send_email_async(current_app._get_current_object(), msg)
     except Exception:
         return jsonify({"msg": "Unable to send reset email right now. Please try again."}), 502
 
@@ -410,7 +420,7 @@ def invite_member():
             f"Hello {name}, your SafeUp invite code is: {invite_code}. "
             "Use it in the app to activate your account."
         )
-        mail.send(msg)
+        _send_email_async(current_app._get_current_object(), msg)
     except Exception:
         return jsonify({"msg": "Member added, but email failed.", "code": invite_code}), 201
 
