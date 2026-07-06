@@ -162,7 +162,15 @@ def chat_stream():
 
     try:
         generator = stream_workspace_command_agent(_workspace_owner(), user_query, thread_id)
-        return Response(generator, mimetype="text/event-stream")
+        return Response(
+            generator, 
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive"
+            }
+        )
     except Exception as err:
         return jsonify({"msg": "Agent stream failed", "error": str(err)}), 500
 

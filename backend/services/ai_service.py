@@ -522,8 +522,11 @@ def stream_workspace_command_agent(workspace_owner: str, user_query: str, thread
     
     for event in agent.stream({"messages": [("user", user_query)]}, config, stream_mode="messages"):
         message, meta = event
-        if message.content and hasattr(message, "content"):
-            yield f"data: {json.dumps({'content': message.content, 'type': message.type})}\n\n"
+        if message.type == "ai" and message.content and hasattr(message, "content"):
+            # Ensure it's a string, sometimes content can be a list of dicts for multimodal
+            content_str = message.content if isinstance(message.content, str) else ""
+            if content_str:
+                yield f"data: {json.dumps({'content': content_str, 'type': message.type})}\n\n"
     
     yield "data: [DONE]\n\n"
 
