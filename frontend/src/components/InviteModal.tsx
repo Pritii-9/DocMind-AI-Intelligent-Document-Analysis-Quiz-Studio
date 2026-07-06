@@ -25,7 +25,7 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean; onCl
 
     try {
       const response = await api.post("/auth/invite-member", { name, email });
-      setMessage(`Success! Give them this Code: ${response.data.code}`);
+      setMessage(`Invitation sent successfully! An email has been dispatched with their secure join link.`);
       setName("");
       setEmail("");
     } catch (err) {
