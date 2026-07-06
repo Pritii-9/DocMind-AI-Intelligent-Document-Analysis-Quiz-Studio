@@ -417,8 +417,10 @@ def invite_member():
     try:
         msg = Message("Your invitation code", recipients=[email])
         msg.body = (
-            f"Hello {name}, your SafeUp invite code is: {invite_code}. "
-            "Use it in the app to activate your account."
+            f"Hello {name}, you have been invited to a SafeUp workspace.\n\n"
+            f"Your SafeUp invite code is: {invite_code}\n\n"
+            f"Click here to join and activate your account: "
+            f"https://pdf-streaming.vercel.app/?invite={invite_code}&email={email}"
         )
         _send_email_async(current_app._get_current_object(), msg)
     except Exception:

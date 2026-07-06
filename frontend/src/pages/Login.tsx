@@ -11,7 +11,7 @@ import {
   Sparkles,    
   RefreshCcw 
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { AxiosError } from "axios";
 
 import api from "../api/axios";
@@ -57,6 +57,17 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const inviteCode = params.get("invite");
+    const paramEmail = params.get("email");
+    if (inviteCode && paramEmail) {
+      setView("invite");
+      setCode(inviteCode);
+      setEmail(paramEmail);
+    }
+  }, []);
 
   const isError = useMemo(() => {
     const value = (message || "").toLowerCase();
