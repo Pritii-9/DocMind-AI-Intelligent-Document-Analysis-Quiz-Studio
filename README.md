@@ -35,7 +35,7 @@
 
 ### 🧠 AI Intelligence Suite
 - **LangGraph Command Center**: An autonomous agent that understands your entire workspace. Query documents, analyze team activity, and extract insights across multiple files.
-- **Precision RAG**: Deep document understanding using semantic search and local embeddings (all-MiniLM-L6-v2).
+- **Precision RAG**: Deep document understanding using semantic search and cloud-based embeddings (Nomic/Groq) for an ultra-low memory footprint.
 - **Streaming Responses**: Real-time AI output using Server-Sent Events (SSE) for a fluid, chatty experience.
 
 ### 🛡️ Enterprise Security
@@ -68,7 +68,7 @@
 ### AI & Data
 - **Orchestration:** LangGraph (Stateful Agents)
 - **RAG Pipeline:** LangChain & Sentence Transformers
-- **Embeddings:** all-MiniLM-L6-v2 (Local Execution)
+- **Embeddings:** Nomic-Embed-Text / Groq API (Cloud Execution)
 - **LLM:** Groq Llama 3.3 (High-performance inference)
 
 ---
