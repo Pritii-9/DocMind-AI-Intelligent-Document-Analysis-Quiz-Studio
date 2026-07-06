@@ -18,23 +18,7 @@ from extensions import get_s3_client
 DEFAULT_CHUNK_SIZE = 500
 DEFAULT_RAG_MATCH_LIMIT = 3
 
-# Lazy-loaded sentence-transformers model (loaded once, reused)
-_embedding_model = None
-_EMBEDDING_MODEL_NAME = os.getenv("SENTENCE_TRANSFORMERS_MODEL", "all-MiniLM-L6-v2")
-
-# Allow overriding the cache dir via env var so Render can persist the model
-# between deploys using a Render Disk mounted at e.g. /opt/render/project/src/.model_cache
-_MODEL_CACHE_DIR = os.getenv("SENTENCE_TRANSFORMERS_HOME", None)
-
-def _get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        from sentence_transformers import SentenceTransformer
-        _embedding_model = SentenceTransformer(
-            _EMBEDDING_MODEL_NAME,
-            cache_folder=_MODEL_CACHE_DIR,
-        )
-    return _embedding_model
+# Local embeddings removed to prevent OOM on Render
 
 
 def ensure_ai_indexes() -> None:
@@ -157,37 +141,34 @@ def chunk_text(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> list[dict[str
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed texts using Groq API (or fallback to local sentence-transformers)."""
+    """Embed texts using Groq API."""
     if not texts:
         return []
         
-    # Attempt to use Groq embeddings first to avoid memory crashes on Render
-    try:
-        groq_api_key = _groq_api_key()
-        groq_embedding = _groq_embedding_model()
-        
-        response = requests.post(
-            f"{_groq_base_url()}/embeddings",
-            headers={
-                "Authorization": f"Bearer {groq_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": groq_embedding,
-                "input": texts,
-            },
-            timeout=_groq_timeout_seconds(),
-        )
+    groq_api_key = _groq_api_key()
+    groq_embedding = _groq_embedding_model()
+    
+    response = requests.post(
+        f"{_groq_base_url()}/embeddings",
+        headers={
+            "Authorization": f"Bearer {groq_api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": groq_embedding,
+            "input": texts,
+        },
+        timeout=_groq_timeout_seconds(),
+    )
+    
+    if not response.ok:
+        current_app.logger.error(f"Groq embedding failed: {response.text}")
         response.raise_for_status()
-        data = response.json()
-        # Ensure returned order matches input order
-        sorted_data = sorted(data.get("data", []), key=lambda x: x.get("index", 0))
-        return [item["embedding"] for item in sorted_data]
-    except Exception as e:
-        current_app.logger.warning(f"Groq embedding failed, falling back to local: {e}")
-        model = _get_embedding_model()
-        embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
-        return [emb.tolist() for emb in embeddings]
+        
+    data = response.json()
+    # Ensure returned order matches input order
+    sorted_data = sorted(data.get("data", []), key=lambda x: x.get("index", 0))
+    return [item["embedding"] for item in sorted_data]
 
 
 def generate_chat_completion(messages: list[dict[str, str]], temperature: float = 0.2) -> str:
