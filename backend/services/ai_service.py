@@ -157,12 +157,37 @@ def chunk_text(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> list[dict[str
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed texts using local sentence-transformers (all-MiniLM-L6-v2)."""
+    """Embed texts using Groq API (or fallback to local sentence-transformers)."""
     if not texts:
         return []
-    model = _get_embedding_model()
-    embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
-    return [emb.tolist() for emb in embeddings]
+        
+    # Attempt to use Groq embeddings first to avoid memory crashes on Render
+    try:
+        groq_api_key = _groq_api_key()
+        groq_embedding = _groq_embedding_model()
+        
+        response = requests.post(
+            f"{_groq_base_url()}/embeddings",
+            headers={
+                "Authorization": f"Bearer {groq_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": groq_embedding,
+                "input": texts,
+            },
+            timeout=_groq_timeout_seconds(),
+        )
+        response.raise_for_status()
+        data = response.json()
+        # Ensure returned order matches input order
+        sorted_data = sorted(data.get("data", []), key=lambda x: x.get("index", 0))
+        return [item["embedding"] for item in sorted_data]
+    except Exception as e:
+        current_app.logger.warning(f"Groq embedding failed, falling back to local: {e}")
+        model = _get_embedding_model()
+        embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
+        return [emb.tolist() for emb in embeddings]
 
 
 def generate_chat_completion(messages: list[dict[str, str]], temperature: float = 0.2) -> str:
