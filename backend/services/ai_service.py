@@ -140,35 +140,29 @@ def chunk_text(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> list[dict[str
     return chunks
 
 
+_embedding_model = None
+
+def _get_embedding_model():
+    global _embedding_model
+    if _embedding_model is None:
+        from fastembed import TextEmbedding
+        # Very lightweight model, prevents OOM and works entirely offline
+        _embedding_model = TextEmbedding("BAAI/bge-small-en-v1.5")
+    return _embedding_model
+
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed texts using Groq API."""
+    """Embed texts using fastembed."""
     if not texts:
         return []
         
-    groq_api_key = _groq_api_key()
-    groq_embedding = _groq_embedding_model()
-    
-    response = requests.post(
-        f"{_groq_base_url()}/embeddings",
-        headers={
-            "Authorization": f"Bearer {groq_api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": groq_embedding,
-            "input": texts,
-        },
-        timeout=_groq_timeout_seconds(),
-    )
-    
-    if not response.ok:
-        current_app.logger.error(f"Groq embedding failed: {response.text}")
-        response.raise_for_status()
-        
-    data = response.json()
-    # Ensure returned order matches input order
-    sorted_data = sorted(data.get("data", []), key=lambda x: x.get("index", 0))
-    return [item["embedding"] for item in sorted_data]
+    try:
+        model = _get_embedding_model()
+        embeddings_generator = model.embed(texts)
+        return [e.tolist() for e in embeddings_generator]
+    except Exception as e:
+        current_app.logger.error(f"Embedding failed: {e}")
+        raise
 
 
 def generate_chat_completion(messages: list[dict[str, str]], temperature: float = 0.2) -> str:
@@ -506,8 +500,9 @@ def _get_langgraph_agent(workspace_owner: str):
     
     system_message = SystemMessage(content=(
         "You are the SafeUp workspace AI agent. Use tools whenever the answer depends on workspace "
-        "data or document content. Do not invent counts, files, or activity. When a tool returns no "
-        "results, say that clearly and suggest a narrower follow-up."
+        "data, document content, or extracting structured fields. Do not invent counts, files, or activity. "
+        "When a tool returns no results, say that clearly and suggest a narrower follow-up. "
+        "For complex extractions, use the extract_structured_data tool."
     ))
     
     client = current_app.mongo_client
@@ -528,11 +523,12 @@ def stream_workspace_command_agent(workspace_owner: str, user_query: str, thread
     
     for event in agent.stream({"messages": [("user", user_query)]}, config, stream_mode="messages"):
         message, meta = event
-        if message.type == "ai" and message.content and hasattr(message, "content"):
+        is_ai = hasattr(message, "type") and (message.type == "ai" or "AIMessageChunk" in message.__class__.__name__)
+        if is_ai and getattr(message, "content", None):
             # Ensure it's a string, sometimes content can be a list of dicts for multimodal
             content_str = message.content if isinstance(message.content, str) else ""
             if content_str:
-                yield f"data: {json.dumps({'content': content_str, 'type': message.type})}\n\n"
+                yield f"data: {json.dumps({'content': content_str, 'type': 'ai'})}\n\n"
     
     yield "data: [DONE]\n\n"
 

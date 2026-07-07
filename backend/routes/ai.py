@@ -150,7 +150,7 @@ def command():
 @ai_bp.route("/chat/stream", methods=["POST"])
 @jwt_required()
 def chat_stream():
-    from flask import Response
+    from flask import Response, stream_with_context
     from services.ai_service import stream_workspace_command_agent
     
     data = _json_body()
@@ -163,7 +163,7 @@ def chat_stream():
     try:
         generator = stream_workspace_command_agent(_workspace_owner(), user_query, thread_id)
         return Response(
-            generator, 
+            stream_with_context(generator), 
             mimetype="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

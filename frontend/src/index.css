@@ -3,18 +3,18 @@
 @variant dark (&:where(.dark, .dark *));
 
 :root {
-  --app-bg: #f3efe6;
-  --panel: rgba(255, 252, 247, 0.88);
-  --panel-muted: rgba(236, 230, 219, 0.55);
-  --panel-strong: #0f1724;
-  --panel-solid: #fffaf2;
-  --workspace-shell: #f5efe4;
-  --workspace-frame: rgba(255, 252, 247, 0.92);
-  --workspace-border: rgba(17, 32, 46, 0.08);
-  --workspace-divider: rgba(17, 32, 46, 0.1);
-  --workspace-hover: rgba(17, 32, 46, 0.05);
+  --app-bg: #f8fafc;
+  --panel: rgba(255, 255, 255, 0.95);
+  --panel-muted: rgba(241, 245, 249, 0.55);
+  --panel-strong: #0f172a;
+  --panel-solid: #ffffff;
+  --workspace-shell: #f1f5f9;
+  --workspace-frame: rgba(255, 255, 255, 0.92);
+  --workspace-border: rgba(15, 23, 42, 0.08);
+  --workspace-divider: rgba(15, 23, 42, 0.1);
+  --workspace-hover: rgba(15, 23, 42, 0.05);
   --workspace-input: rgba(255, 255, 255, 0.7);
-  --viewer-bg: #f1ebe1;
+  --viewer-bg: #e2e8f0;
   --button-primary-bg: #0c6b63;
   --button-primary-hover: #095850;
   --button-primary-text: #f8fffd;

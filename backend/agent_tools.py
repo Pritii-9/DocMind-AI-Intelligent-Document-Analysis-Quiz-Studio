@@ -120,9 +120,21 @@ def build_agent_tools(workspace_owner: str):
             
         return _json(results)
 
+    @tool
+    def extract_structured_data(document_keys: list[str], schema_prompt: str) -> str:
+        """Extract structured JSON data from a list of documents (provide document_keys) based on a schema prompt. Use this when the user asks to extract specific fields or structured information from documents."""
+        from services.ai_service import extract_data_from_documents
+        results = extract_data_from_documents(
+            workspace_owner=workspace_owner,
+            document_keys=document_keys,
+            schema_prompt=schema_prompt,
+        )
+        return _json(results)
+
     return [
         get_workspace_analytics,
         get_recent_uploads,
         search_documents_by_name,
         semantic_search_workspace,
+        extract_structured_data,
     ]

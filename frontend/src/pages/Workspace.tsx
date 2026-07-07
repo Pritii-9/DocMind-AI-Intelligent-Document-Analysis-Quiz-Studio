@@ -93,6 +93,38 @@ function formatAiStatus(status?: PdfDocument["ai_index_status"]) {
   }
 }
 
+function AiStatusBadge({ status }: { status?: string }) {
+  const isReady = status === "ready";
+  const isProcessing = status === "processing";
+  const isFailed = status === "failed";
+
+  let dotClass = "bg-gray-400";
+  let text = "Pending Index";
+  
+  if (isReady) {
+    dotClass = "bg-emerald-500";
+    text = "AI Ready";
+  } else if (isProcessing) {
+    dotClass = "bg-amber-400 animate-pulse";
+    text = "Indexing";
+  } else if (isFailed) {
+    dotClass = "bg-rose-500";
+    text = "Index Failed";
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+      <span>{text}</span>
+    </span>
+  );
+}
+
+function formatFilename(rawName?: string) {
+  if (!rawName) return "";
+  return rawName.replace(/^\d+-/, "");
+}
+
 function compareByLatestUpload(a: PdfDocument, b: PdfDocument) {
   return new Date(b.uploaded_at || 0).getTime() - new Date(a.uploaded_at || 0).getTime();
 }
@@ -436,8 +468,8 @@ export default function Workspace() {
                   <span className="truncate font-semibold text-[var(--text-strong)]">{sectionLabels[currentSection]}</span>
                   {currentSection === "viewer" && selectedDocument && (
                     <>
-                      <span className="text-[var(--text-soft)]">/</span>
-                      <span className="truncate text-[var(--accent)]">{selectedDocument.filename}</span>
+                      <span className="text-[var(--text-soft)] shrink-0">/</span>
+                      <span className="truncate text-[var(--accent)]">{formatFilename(selectedDocument.filename)}</span>
                     </>
                   )}
                 </div>
@@ -479,21 +511,21 @@ export default function Workspace() {
                   <button
                     type="button"
                     onClick={() => setIsChatOpen((open) => !open)}
-                    className="rounded-lg bg-[var(--accent-soft)] p-2 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-all"
+                    className="rounded-lg bg-[var(--workspace-input)] p-2 text-[var(--text-soft)] hover:bg-[var(--workspace-hover)] hover:text-[var(--text-strong)] transition-colors"
                     title="AI Chat"
                     aria-label="Toggle AI assistant"
                   >
-                    <Bot size={18} />
+                    <Bot size={20} strokeWidth={2} />
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={logout}
-                  className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-500 transition-colors hover:bg-rose-500/20 hover:text-rose-600"
+                  className="rounded-lg bg-[var(--workspace-input)] p-2 text-[var(--text-soft)] hover:bg-[var(--workspace-hover)] hover:text-[var(--text-strong)] transition-colors"
                   title="Logout"
                   aria-label="Logout"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={20} strokeWidth={2} />
                 </button>
               </div>
             </div>
@@ -588,14 +620,14 @@ export default function Workspace() {
                             >
                               <div className="min-w-0 flex-1">
                                 <p className="truncate font-bold text-[var(--text-strong)] transition-colors group-hover:text-[var(--accent)]">
-                                  {doc.filename}
+                                  {formatFilename(doc.filename)}
                                 </p>
                                 <div className="mt-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-soft)]">
                                   <span>{formatBytes(doc.size_bytes)}</span>
                                   <span>•</span>
                                   <span>{formatRelativeTime(doc.uploaded_at)}</span>
                                   <span>•</span>
-                                  <span className="text-[var(--accent)]">{formatAiStatus(doc.ai_index_status)}</span>
+                                  <span className="text-[var(--accent)]"><AiStatusBadge status={doc.ai_index_status} /></span>
                                 </div>
                               </div>
                             </button>
@@ -639,13 +671,13 @@ export default function Workspace() {
                             <div key={doc.key} className="rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel)] p-4">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm font-bold text-[var(--text-strong)]">{doc.filename}</p>
+                                  <p className="truncate text-sm font-bold text-[var(--text-strong)]">{formatFilename(doc.filename)}</p>
                                   <p className="mt-1 text-xs text-[var(--text-soft)]">
                                     {doc.ai_chunk_count > 0 ? `${doc.ai_chunk_count} chunks indexed` : "Awaiting first ingest"}
                                   </p>
                                 </div>
                                 <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-                                  {formatAiStatus(doc.ai_index_status)}
+                                  <AiStatusBadge status={doc.ai_index_status} />
                                 </span>
                               </div>
                               {doc.ai_error ? (
@@ -702,9 +734,9 @@ export default function Workspace() {
                                 }}
                               />
                             </div>
-                            <p className="mb-4 truncate font-bold text-[var(--text-strong)] pr-8">{doc.filename}</p>
+                            <p className="mb-4 truncate font-bold text-[var(--text-strong)] pr-8">{formatFilename(doc.filename)}</p>
                             <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-                              {formatAiStatus(doc.ai_index_status)}
+                              <AiStatusBadge status={doc.ai_index_status} />
                             </p>
                             <div className="flex gap-2">
                               <button
@@ -785,7 +817,7 @@ export default function Workspace() {
                                 <table className="w-full text-left text-sm">
                                   <thead className="border-b border-[var(--workspace-divider)] bg-[var(--panel-muted)]">
                                     <tr>
-                                      {Object.keys(extractionResults[0] || {}).map(key => (
+                                      {Array.from(new Set(extractionResults.flatMap(r => Object.keys(r)))).map(key => (
                                         <th key={key} className="p-4 font-bold text-[var(--text-strong)]">{key}</th>
                                       ))}
                                     </tr>
@@ -793,8 +825,12 @@ export default function Workspace() {
                                   <tbody className="divide-y divide-[var(--workspace-divider)]">
                                     {extractionResults.map((row, i) => (
                                       <tr key={i} className="hover:bg-[var(--panel-solid)] transition-colors">
-                                        {Object.values(row).map((val: any, j) => (
-                                          <td key={j} className="p-4 text-[var(--text-soft)]">{typeof val === 'object' ? JSON.stringify(val) : String(val)}</td>
+                                        {Array.from(new Set(extractionResults.flatMap(r => Object.keys(r)))).map((key, j) => (
+                                          <td key={j} className="p-4 text-[var(--text-soft)]">
+                                            {typeof row[key] === 'object' && row[key] !== null 
+                                              ? JSON.stringify(row[key]) 
+                                              : String(row[key] ?? '-')}
+                                          </td>
                                         ))}
                                       </tr>
                                     ))}
@@ -840,10 +876,10 @@ export default function Workspace() {
                                 <button
                                   onClick={() => {
                                     if (!extractionResults || extractionResults.length === 0) return;
-                                    const keys = Object.keys(extractionResults[0]);
+                                    const allKeys = Array.from(new Set(extractionResults.flatMap(r => Object.keys(r))));
                                     const csvContent = [
-                                      keys.join(','),
-                                      ...extractionResults.map(row => keys.map(k => {
+                                      allKeys.join(','),
+                                      ...extractionResults.map(row => allKeys.map(k => {
                                         let val = row[k];
                                         if (val === null || val === undefined) val = "";
                                         else if (typeof val === 'object') val = JSON.stringify(val);
@@ -874,10 +910,10 @@ export default function Workspace() {
                 {currentSection === "viewer" && (
                   <div className={`grid gap-6 ${isChatOpen ? "xl:grid-cols-[minmax(0,1fr)_380px]" : "grid-cols-1"} min-h-[calc(100vh-8rem)] xl:h-[calc(100vh-8rem)]`}>
                     <div className="flex flex-col gap-6 overflow-hidden">
-                      <div className="flex flex-shrink-0 gap-8 overflow-x-auto rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel-solid)] p-4 shadow-xl shadow-black/5">
+                      <div className="flex flex-shrink-0 gap-8 overflow-x-auto rounded-2xl border border-[var(--workspace-border)] bg-[var(--panel-solid)] px-6 py-5 shadow-xl shadow-black/5">
                         <div className="min-w-[120px]">
                           <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Selected file</p>
-                          <p className="mt-1 truncate text-sm font-bold text-[var(--text-strong)]">{selectedDocument?.filename || "No file selected"}</p>
+                          <p className="mt-1 truncate text-sm font-bold text-[var(--text-strong)] max-w-xs">{selectedDocument ? formatFilename(selectedDocument.filename) : "No file selected"}</p>
                         </div>
                         <div className="min-w-[120px]">
                           <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Uploaded</p>
@@ -885,7 +921,7 @@ export default function Workspace() {
                         </div>
                         <div className="min-w-[120px]">
                           <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">AI status</p>
-                          <p className="mt-1 text-sm font-bold text-[var(--text-strong)]">{formatAiStatus(selectedDocument?.ai_index_status)}</p>
+                          <p className="mt-1 text-sm font-bold text-[var(--text-strong)]"><AiStatusBadge status={selectedDocument?.ai_index_status} /></p>
                         </div>
                       </div>
 

@@ -112,20 +112,18 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[var(--workspace-shell)] text-[var(--text-strong)] transition-colors duration-300">
+    <div className="flex min-h-screen w-full bg-[var(--workspace-shell)] text-[var(--text-strong)] transition-colors duration-300">
       
-      {/* 1. BRANDED HEADER - Matches Sidebar Branding */}
-      <nav className="fixed top-0 z-50 w-full border-b border-[var(--workspace-divider)] bg-[var(--workspace-frame)] px-6 py-4 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
+      {/* BRANDED HEADER - Floats above everything */}
+      <nav className="absolute top-0 left-0 z-50 w-full px-8 py-6">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
-            {/* EXACT SAME LOGO AS SIDEBAR */}
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-cyan-600 shadow-lg shadow-cyan-500/20 font-bold text-white">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent)] to-cyan-600 shadow-lg shadow-cyan-500/20 font-bold text-white">
               S
             </div>
             <div>
-              <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)]/70 leading-none mb-1">SafeUp Workspace</span>
               <span className="font-display text-xl font-bold tracking-tight text-[var(--text-strong)] leading-none">
-                SafeUp<span className="text-[var(--accent)]">.</span>
+                SafeUp
               </span>
             </div>
           </div>
@@ -133,19 +131,18 @@ export default function Login() {
         </div>
       </nav>
 
-      <main className="relative mx-auto flex min-h-screen max-w-7xl flex-col items-center justify-center px-6 pt-24 lg:flex-row lg:gap-20 lg:pt-0">
-        
-        {/* Narrative Side */}
-        <section className="flex-1 pb-12 lg:pb-0 animate-in fade-in slide-in-from-left-8 duration-700">
+      {/* Left Panel - Narrative */}
+      <div className="hidden lg:flex w-1/2 flex-col justify-center bg-[var(--workspace-shell)] px-16 xl:px-24">
+        <div className="max-w-xl mx-auto w-full animate-in fade-in slide-in-from-left-8 duration-700 mt-16">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[var(--workspace-divider)] bg-[var(--workspace-frame)] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
             <ShieldCheck size={14} />
             Enterprise Document Security
           </div>
-          <h1 className="font-display text-4xl font-bold leading-[1.1] text-[var(--text-strong)] sm:text-6xl">
+          <h1 className="font-display text-4xl font-bold leading-[1.1] text-[var(--text-strong)] xl:text-6xl">
             Stream documents with <br /> 
-            <span className="text-[var(--accent)]">absolute control.</span>
+            <span className="text-[var(--accent)]">absolute control</span>
           </h1>
-          <p className="mt-8 max-w-lg text-lg leading-relaxed text-[var(--text-soft)]">
+          <p className="mt-8 max-w-md text-lg leading-relaxed text-[var(--text-soft)]">
             SafeUp provides workspace isolation and protected PDF delivery for modern teams. Secure, fast, and entirely audited.
           </p>
           
@@ -154,7 +151,7 @@ export default function Login() {
               { label: "Storage", val: "S3 Encrypted", icon: HardDrive },
               { label: "Sync", val: "Real-time SSE", icon: Sparkles },
             ].map((feat) => (
-              <div key={feat.label} className="flex items-center gap-4">
+              <div key={feat.label} className="flex items-center gap-4 rounded-xl border border-[var(--workspace-divider)] bg-[var(--workspace-frame)] p-4 shadow-sm">
                 <div className="rounded-xl bg-[var(--accent-soft)] p-2 text-[var(--accent)]">
                   <feat.icon size={18} />
                 </div>
@@ -165,142 +162,143 @@ export default function Login() {
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </div>
 
-        {/* Auth Card */}
-        <section className="w-full max-w-[460px] animate-in fade-in slide-in-from-right-8 duration-700">
-          <div className="rounded-[2.5rem] border border-[var(--workspace-divider)] bg-[var(--panel-solid)] p-8 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] sm:p-10">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold tracking-tight text-[var(--text-strong)]">
-                {titleMap[view]}
-              </h2>
-              <p className="mt-2 text-sm text-[var(--text-soft)] leading-relaxed">
-                {subtitleMap[view]}
-              </p>
+      {/* Right Panel - Auth Form */}
+      <div className="flex w-full lg:w-1/2 flex-col justify-center bg-white dark:bg-[var(--panel-solid)] px-6 sm:px-12 md:px-20 lg:px-24 relative shadow-2xl lg:shadow-[0_0_60px_-15px_rgba(0,0,0,0.1)]">
+        
+        <div className="w-full max-w-[420px] mx-auto animate-in fade-in slide-in-from-right-8 duration-700 mt-20 lg:mt-0">
+          <div className="mb-10">
+            <h2 className="text-2xl font-bold tracking-tight text-[var(--text-strong)]">
+              {titleMap[view]}
+            </h2>
+            <p className="mt-2 text-sm text-[var(--text-soft)] leading-relaxed">
+              {subtitleMap[view]}
+            </p>
+          </div>
+
+          {message && (
+            <div className={`mb-6 rounded-lg border px-4 py-3 text-xs font-bold ${
+              isError ? "border-rose-500/20 bg-rose-500/10 text-rose-500" 
+                      : "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+            }`}>
+              {message}
             </div>
+          )}
 
-            {message && (
-              <div className={`mb-6 rounded-2xl border px-4 py-3 text-xs font-bold ${
-                isError ? "border-rose-500/20 bg-rose-500/10 text-rose-500" 
-                        : "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
-              }`}>
-                {message}
-              </div>
-            )}
-
-            <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
-              <div className="space-y-5">
-                {["signup", "verify", "invite"].includes(view) && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">Full Name</label>
-                    <div className="relative group">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
-                      <input 
-                        className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
-                        placeholder="Ananya Sharma"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
-
+          <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
+            <div className="space-y-6">
+              {["signup", "verify", "invite"].includes(view) && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">Email Address</label>
+                  <label className="text-sm font-semibold text-[var(--text-strong)] px-1 block">Full name</label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
                     <input 
-                      className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
-                      placeholder="name@company.com"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+                      placeholder="Ananya Sharma"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
                     />
                   </div>
                 </div>
+              )}
 
-                {(view === "verify" || view === "invite" || view === "reset") && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)] px-1">
-                      {view === "verify" ? "Verification Code" : view === "invite" ? "Invitation Code" : "Reset Code"}
-                    </label>
-                    <div className="relative">
-                      <Ticket className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={18} />
-                      <input 
-                        className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 text-center text-lg font-bold tracking-[0.5em] text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
-                        maxLength={6}
-                        placeholder="000000"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {(view === "login" || view === "verify" || view === "invite" || view === "reset") && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center px-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Password</label>
-                      {view === "login" && (
-                        <button type="button" onClick={() => switchView("forgot")} className="text-[10px] font-bold text-[var(--accent)] hover:underline underline-offset-4 uppercase">Forgot?</button>
-                      )}
-                    </div>
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
-                      <input 
-                        className="w-full rounded-2xl border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3.5 pl-12 pr-12 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)]"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
-                      <button 
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors"
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-                )}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-strong)] px-1 block">Email address</label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
+                  <input 
+                    className="w-full rounded-lg border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+                    placeholder="name@company.com"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="group mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--button-primary-bg)] py-4 text-sm font-bold text-[var(--button-primary-text)] shadow-xl shadow-[var(--accent)]/20 transition-all hover:bg-[var(--button-primary-hover)] disabled:opacity-50"
-              >
-                {loading ? <RefreshCcw className="animate-spin" size={18} /> : primaryLabelMap[view]}
-                {!loading && <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />}
-              </button>
-            </form>
-
-            <div className="mt-8 border-t border-[var(--workspace-divider)] pt-6 text-center">
-              {view === "login" ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-[var(--text-soft)]">
-                    Need a workspace?{" "}
-                    <button type="button" onClick={() => switchView("signup")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Create account</button>
-                  </p>
-                  <p className="text-sm text-[var(--text-soft)]">
-                    Have an invite code?{" "}
-                    <button type="button" onClick={() => switchView("invite")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Join workspace</button>
-                  </p>
+              {(view === "verify" || view === "invite" || view === "reset") && (
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[var(--text-strong)] px-1 block">
+                    {view === "verify" ? "Verification code" : view === "invite" ? "Invitation code" : "Reset code"}
+                  </label>
+                  <div className="relative">
+                    <Ticket className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={18} />
+                    <input 
+                      className="w-full rounded-lg border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3 pl-12 text-center text-lg font-bold tracking-[0.5em] text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    />
+                  </div>
                 </div>
-              ) : (
-                <button onClick={() => switchView("login")} className="text-sm font-bold text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors inline-flex items-center gap-2 mx-auto">
-                  Back to login
-                </button>
+              )}
+
+              {(view === "login" || view === "verify" || view === "invite" || view === "reset") && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-sm font-semibold text-[var(--text-strong)]">Password</label>
+                    {view === "login" && (
+                      <button type="button" onClick={() => switchView("forgot")} className="text-sm font-semibold text-[var(--accent)] hover:underline underline-offset-4">Forgot password?</button>
+                    )}
+                  </div>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
+                    <input 
+                      className="w-full rounded-lg border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3 pl-12 pr-12 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="group mt-10 flex w-full items-center justify-center gap-3 rounded-lg bg-[var(--button-primary-bg)] py-3.5 text-sm font-bold text-[var(--button-primary-text)] shadow-lg shadow-[var(--accent)]/20 transition-all hover:bg-[var(--button-primary-hover)] disabled:opacity-50"
+            >
+              {loading ? <RefreshCcw className="animate-spin" size={18} /> : primaryLabelMap[view]}
+              {!loading && <ArrowRight size={18} className="ml-1 transition-transform group-hover:translate-x-1" />}
+            </button>
+          </form>
+
+          <div className="mt-8 border-t border-[var(--workspace-divider)] pt-6 text-center">
+            {view === "login" ? (
+              <div className="space-y-3">
+                <p className="text-sm text-[var(--text-soft)]">
+                  Need a workspace?{" "}
+                  <button type="button" onClick={() => switchView("signup")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Create account</button>
+                </p>
+                <p className="text-sm text-[var(--text-soft)]">
+                  Have an invite code?{" "}
+                  <button type="button" onClick={() => switchView("invite")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Join workspace</button>
+                </p>
+              </div>
+            ) : (
+              <button onClick={() => switchView("login")} className="text-sm font-bold text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors inline-flex items-center gap-2 mx-auto">
+                Back to login
+              </button>
+            )}
           </div>
           
-          <p className="mt-8 text-center text-xs font-bold uppercase tracking-widest text-[var(--text-soft)] opacity-40">
-            Â© 2026 SafeUp Systems Inc.
+          <p className="mt-12 text-center text-xs font-bold uppercase tracking-widest text-[var(--text-soft)] opacity-40">
+            &copy; 2026 SafeUp Systems Inc.
           </p>
-        </section>
-      </main>
+        </div>
+      </div>
     </div>
   );
 }
