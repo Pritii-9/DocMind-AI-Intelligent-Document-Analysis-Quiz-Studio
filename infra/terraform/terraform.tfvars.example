@@ -1,0 +1,11 @@
+aws_region           = "ap-south-1"
+aws_access_key       = "AKIAS625MQH5JADAANOY"
+aws_secret_key       = "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"
+environment          = "production"
+bucket_name          = "docmind-pdf-storage-prod-2026"
+enable_versioning    = true
+cors_allowed_origins = [
+  "http://localhost:5173",
+  "http://localhost:8000"
+]
+abort_incomplete_multipart_upload_days = 7

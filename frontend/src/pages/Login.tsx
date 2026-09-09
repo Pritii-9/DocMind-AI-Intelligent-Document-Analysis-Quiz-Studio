@@ -1,304 +1,501 @@
-import { 
-  ArrowRight, 
-  Eye, 
-  EyeOff, 
-  Lock, 
-  Mail, 
-  ShieldCheck, 
-  Ticket, 
-  User, 
-  HardDrive,   
-  Sparkles,    
-  RefreshCcw 
-} from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
-import type { AxiosError } from "axios";
-
-import api from "../api/axios";
-import ThemeToggle from "../components/ThemeToggle";
+import { useState } from "react";
+import { FileText, Mail, Lock, User, ArrowRight, Eye, EyeOff, ShieldCheck, Bot, Users, Check, X } from "lucide-react";
+import api from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
-type ViewState = "login" | "signup" | "verify" | "invite" | "forgot" | "reset";
+type Step = "login" | "signup-start" | "signup-verify" | "forgot" | "reset" | "invite";
 
-const titleMap: Record<ViewState, string> = {
-  login: "Welcome back",
-  signup: "Get started",
-  verify: "Check your inbox",
-  invite: "Join workspace",
-  forgot: "Reset password",
-  reset: "New password",
-};
+/* ─── Palette: quiet ink-blue, warm paper background ─────────────────── */
+const INK        = "#22293A";   // near-black with a blue cast, used for headline type
+const ACCENT     = "#3E4C6B";   // deep muted indigo — the one bold move
+const ACCENT_DK  = "#2F3A54";
+const PAPER      = "#F7F6F3";   // warm off-white page background
+const LINE       = "#E4E1DA";   // warm hairline, not cold #e2e8f0
+const SUBTLE     = "#75726B";   // warm grey for secondary text
 
-const subtitleMap: Record<ViewState, string> = {
-  login: "Enter your credentials to access your secure documents.",
-  signup: "Create an account to begin managing your team workspace.",
-  verify: "We've sent a 6-digit code to your email address.",
-  invite: "Enter your invitation code to activate your workspace access.",
-  forgot: "Enter your email and we'll send you a recovery code.",
-  reset: "Set a secure password for your workspace account.",
-};
+/* ─── Validation rules ────────────────────────────────────────────────── */
+const isEmailValid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+const pwChecks = (pw: string) => ({
+  minLen: pw.length >= 8,
+  hasUpper: /[A-Z]/.test(pw),
+  hasLower: /[a-z]/.test(pw),
+  hasNum: /[0-9]/.test(pw),
+});
 
-const primaryLabelMap: Record<ViewState, string> = {
-  login: "Continue",
-  signup: "Create Account",
-  verify: "Verify Code",
-  invite: "Join Workspace",
-  forgot: "Send Code",
-  reset: "Update Password",
-};
+function Label({ text, required }: { text: string; required?: boolean }) {
+  return (
+    <p style={{ fontSize: 12.5, fontWeight: 600, color: "#4A473F", marginBottom: 6 }}>
+      {text}{required && <span style={{ color: "#B4483C" }}> *</span>}
+    </p>
+  );
+}
+
+function Input({ icon: Icon, isValid, right, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: any; isValid?: boolean; right?: React.ReactNode }) {
+  return (
+    <div style={{ position: "relative" }}>
+      {Icon && <Icon size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#A6A296", pointerEvents: "none" }} />}
+      <input
+        style={{
+          width: "100%",
+          background: "#ffffff",
+          border: `1px solid ${isValid === false ? "#D79088" : isValid === true ? "#9AB6A0" : "#D9D5CB"}`,
+          borderRadius: 8,
+          padding: Icon ? "12px 14px 12px 40px" : "12px 14px",
+          paddingRight: right ? 44 : 14,
+          fontSize: 13.5,
+          color: INK,
+          outline: "none",
+          fontFamily: "inherit",
+          transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+          boxShadow: isValid === false ? "0 0 0 3px rgba(180,72,60,0.08)" : "none",
+        }}
+        onFocus={e => {
+          if (isValid !== false) {
+            e.target.style.borderColor = ACCENT;
+            e.target.style.boxShadow = `0 0 0 3px rgba(62,76,107,0.14)`;
+          }
+        }}
+        onBlur={e => {
+          if (isValid === undefined) {
+            e.target.style.borderColor = "#D9D5CB";
+            e.target.style.boxShadow = "none";
+          }
+        }}
+        {...props}
+      />
+      {right && <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}>{right}</div>}
+    </div>
+  );
+}
+
+function PwChecklist({ pw }: { pw: string }) {
+  const c = pwChecks(pw);
+  if (!pw) return null;
+  return (
+    <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: "9px 11px", background: PAPER, borderRadius: 7, border: `1px solid ${LINE}` }}>
+      {[
+        { label: "8+ characters", ok: c.minLen },
+        { label: "One uppercase", ok: c.hasUpper },
+        { label: "One lowercase", ok: c.hasLower },
+        { label: "One number",    ok: c.hasNum },
+      ].map((item, idx) => (
+        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: item.ok ? "#4C7A5A" : "#A6A296", fontWeight: item.ok ? 600 : 400 }}>
+          {item.ok ? <Check size={12} color="#4C7A5A" /> : <X size={12} color="#D9D5CB" />}
+          {item.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Btn({ loading, disabled, children }: { loading?: boolean; disabled?: boolean; children: React.ReactNode }) {
+  const isOff = loading || disabled;
+  return (
+    <button
+      type="submit"
+      disabled={isOff}
+      style={{
+        width: "100%",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        background: isOff ? "#E4E1DA" : ACCENT,
+        color: isOff ? "#A6A296" : "#ffffff",
+        border: "none", borderRadius: 8,
+        padding: "13px 20px", fontSize: 14, fontWeight: 600,
+        cursor: isOff ? "not-allowed" : "pointer",
+        fontFamily: "inherit",
+        transition: "background 0.15s ease",
+      }}
+      onMouseEnter={e => { if (!isOff) (e.currentTarget as HTMLButtonElement).style.background = ACCENT_DK; }}
+      onMouseLeave={e => { if (!isOff) (e.currentTarget as HTMLButtonElement).style.background = ACCENT; }}
+    >
+      {loading
+        ? <><span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} /><span>Please wait…</span></>
+        : <><span>{children}</span><ArrowRight size={15} /></>
+      }
+    </button>
+  );
+}
+
+function Ghost({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      background: "none", border: "none",
+      padding: "6px 0", fontSize: 13, color: SUBTLE,
+      cursor: "pointer", fontFamily: "inherit", fontWeight: 500,
+      transition: "color 0.15s ease",
+    }}
+    onMouseEnter={e => (e.currentTarget.style.color = ACCENT)}
+    onMouseLeave={e => (e.currentTarget.style.color = SUBTLE)}>
+      {children}
+    </button>
+  );
+}
+
+function Msg({ type, text }: { type: "error" | "ok"; text: string }) {
+  const isErr = type === "error";
+  return (
+    <div style={{
+      padding: "11px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+      background: isErr ? "#FBEEEC" : "#EEF4EF",
+      border: `1px solid ${isErr ? "#E2B3AC" : "#B7D0BC"}`,
+      color: isErr ? "#A0392C" : "#3E6B4A",
+      display: "flex", alignItems: "center", gap: 8,
+    }}>
+      {isErr ? <X size={15} /> : <Check size={15} />}
+      <span>{text}</span>
+    </div>
+  );
+}
+
+const FEATURES = [
+  { Icon: ShieldCheck, label: "Secure storage",  desc: "Every file encrypted at rest, backed by AWS S3" },
+  { Icon: Bot,         label: "Ask your documents", desc: "A retrieval engine that reads across your whole library" },
+  { Icon: Users,       label: "Shared workspaces", desc: "Invite a team, set roles, keep everyone in sync" },
+];
 
 export default function Login() {
   const { login } = useAuth();
-  const [view, setView] = useState<ViewState>("login");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [step, setStep]       = useState<Step>("login");
   const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
+  const [success, setSuccess] = useState("");
+  const [showPw, setShowPw]   = useState(false);
+  const [f, setF] = useState({ name:"", email:"", pw:"", otp:"", forgotEmail:"", resetCode:"", resetPw:"", invEmail:"", invCode:"", invPw:"" });
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const inviteCode = params.get("invite");
-    const paramEmail = params.get("email");
-    if (inviteCode && paramEmail) {
-      setView("invite");
-      setCode(inviteCode);
-      setEmail(paramEmail);
-    }
-  }, []);
-
-  const isError = useMemo(() => {
-    const value = (message || "").toLowerCase();
-    return ["failed", "invalid", "required", "expired", "exists"].some(kw => value.includes(kw));
-  }, [message]);
-
-  const switchView = (next: ViewState) => {
-    setView(next);
-    setMessage(null);
-    setPassword("");
-    if (next !== "verify" && next !== "invite" && next !== "reset") {
-      setCode("");
-    }
+  const up = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF(p => ({ ...p, [k]: e.target.value }));
+  const clr = () => { setError(""); setSuccess(""); };
+  const go  = (s: Step) => {
+    clr();
+    if (s === "forgot" && !f.forgotEmail && f.email) setF(p => ({ ...p, forgotEmail: p.email }));
+    if (s === "reset" && !f.forgotEmail && f.email) setF(p => ({ ...p, forgotEmail: p.email }));
+    setStep(s);
   };
 
-  const handleAction = async (action: () => Promise<unknown>) => {
-    setLoading(true);
-    setMessage(null);
-    try {
-      await action();
-      if (view === "signup") setView("verify");
-      else if (view === "forgot") setView("reset");
-      else if (["verify", "invite", "reset"].includes(view)) {
-        setView("login");
-        setMessage("Success. You can now sign in.");
-      }
-    } catch (err: unknown) {
-      const axiosError = err as AxiosError<{ msg?: string }>;
-      setMessage(axiosError.response?.data?.msg || "An unexpected error occurred.");
-    } finally {
-      setLoading(false);
+  async function wrap(fn: () => Promise<void>) {
+    clr(); setLoading(true);
+    try { await fn(); }
+    catch (e: any) {
+      const errMsg = e.response?.data?.detail || "Something went wrong";
+      setError(errMsg);
+      toast.error(errMsg);
     }
+    finally { setLoading(false); }
+  }
+
+  const cardStyle: React.CSSProperties = {
+    background: "#ffffff",
+    border: `1px solid ${LINE}`,
+    borderRadius: 14,
+    padding: "38px 34px",
+    boxShadow: "0 1px 2px rgba(34,41,58,0.04)",
   };
 
-  const submit = () => {
-    if (view === "login") void handleAction(() => login(email, password));
-    else if (view === "signup") void handleAction(() => api.post("/auth/start-signup", { name, email }));
-    else if (view === "verify") void handleAction(() => api.post("/auth/complete-signup", { name, email, otp: code, password }));
-    else if (view === "invite") void handleAction(() => api.post("/auth/verify-invite", { name, email, invite_code: code, password }));
-    else if (view === "forgot") void handleAction(() => api.post("/auth/forgot-password", { email }));
-    else if (view === "reset") void handleAction(() => api.post("/auth/reset-password", { email, reset_code: code, password }));
+  const headline: React.CSSProperties = {
+    fontFamily: "'Iowan Old Style', 'Source Serif 4', Georgia, ui-serif, serif",
+    fontSize: 25, fontWeight: 600, marginBottom: 5, letterSpacing: "-0.01em", color: INK, lineHeight: 1.25,
   };
+  const sub: React.CSSProperties = { color: SUBTLE, fontSize: 13.5, marginBottom: 28, lineHeight: 1.5 };
 
   return (
-    <div className="flex min-h-screen w-full bg-[var(--workspace-shell)] text-[var(--text-strong)] transition-colors duration-300">
-      
-      {/* BRANDED HEADER - Floats above everything */}
-      <nav className="absolute top-0 left-0 z-50 w-full px-8 py-6">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent)] to-cyan-600 shadow-lg shadow-cyan-500/20 font-bold text-white">
-              S
+    <div style={{ minHeight: "100vh", background: PAPER, display: "flex", fontFamily: "'Inter', system-ui, sans-serif", color: INK }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── Left: Form Area ── */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
+        <div style={{ width: "100%", maxWidth: 400 }}>
+
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 34 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 9, background: ACCENT,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <FileText size={19} color="#fff" />
             </div>
             <div>
-              <span className="font-display text-xl font-bold tracking-tight text-[var(--text-strong)] leading-none">
-                SafeUp
+              <span style={{ fontFamily: "'Iowan Old Style', Georgia, ui-serif, serif", fontSize: 19, fontWeight: 600, letterSpacing: "-0.01em", color: INK }}>
+                DocMind
+              </span>
+              <span style={{ display: "block", fontSize: 11.5, color: SUBTLE, marginTop: -1 }}>
+                Document intelligence for teams
               </span>
             </div>
           </div>
-          <ThemeToggle />
-        </div>
-      </nav>
 
-      {/* Left Panel - Narrative */}
-      <div className="hidden lg:flex w-1/2 flex-col justify-center bg-[var(--workspace-shell)] px-16 xl:px-24">
-        <div className="max-w-xl mx-auto w-full animate-in fade-in slide-in-from-left-8 duration-700 mt-16">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[var(--workspace-divider)] bg-[var(--workspace-frame)] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-            <ShieldCheck size={14} />
-            Enterprise Document Security
-          </div>
-          <h1 className="font-display text-4xl font-bold leading-[1.1] text-[var(--text-strong)] xl:text-6xl">
-            Stream documents with <br /> 
-            <span className="text-[var(--accent)]">absolute control</span>
-          </h1>
-          <p className="mt-8 max-w-md text-lg leading-relaxed text-[var(--text-soft)]">
-            SafeUp provides workspace isolation and protected PDF delivery for modern teams. Secure, fast, and entirely audited.
-          </p>
-          
-          <div className="mt-12 grid grid-cols-2 gap-6">
-            {[
-              { label: "Storage", val: "S3 Encrypted", icon: HardDrive },
-              { label: "Sync", val: "Real-time SSE", icon: Sparkles },
-            ].map((feat) => (
-              <div key={feat.label} className="flex items-center gap-4 rounded-xl border border-[var(--workspace-divider)] bg-[var(--workspace-frame)] p-4 shadow-sm">
-                <div className="rounded-xl bg-[var(--accent-soft)] p-2 text-[var(--accent)]">
-                  <feat.icon size={18} />
+          {/* ── LOGIN ── */}
+          {step === "login" && (
+            <div style={cardStyle}>
+              <h1 style={headline}>Welcome back</h1>
+              <p style={sub}>Sign in to your workspace</p>
+
+              <form onSubmit={e => {
+                e.preventDefault();
+                if (!isEmailValid(f.email)) { setError("Please enter a valid email address"); return; }
+                wrap(async () => {
+                  const { data } = await api.post("/auth/login", { email: f.email, password: f.pw });
+                  login(data.access_token, data.name, data.role);
+                  toast.success(`Welcome back, ${data.name}!`);
+                });
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {error && <Msg type="error" text={error} />}
+                  <div>
+                    <Label text="Work email" required />
+                    <Input icon={Mail} type="email" placeholder="you@company.com" value={f.email} onChange={up("email")} required isValid={f.email ? isEmailValid(f.email) : undefined} />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <Label text="Password" required />
+                      <button type="button" onClick={() => go("forgot")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: ACCENT, fontFamily: "inherit", padding: 0, fontWeight: 500 }}>
+                        Forgot password?
+                      </button>
+                    </div>
+                    <Input icon={Lock} type={showPw ? "text" : "password"} placeholder="••••••••" value={f.pw} onChange={up("pw")} required
+                      right={<button type="button" onClick={() => setShowPw(!showPw)} style={{ background: "none", border: "none", cursor: "pointer", color: "#A6A296", display: "flex" }}>{showPw ? <EyeOff size={15}/> : <Eye size={15}/>}</button>}
+                    />
+                  </div>
+                  <Btn loading={loading}>Sign in</Btn>
                 </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">{feat.label}</p>
-                  <p className="text-sm font-bold text-[var(--text-strong)]">{feat.val}</p>
-                </div>
+              </form>
+
+              <div style={{ height: 1, background: LINE, margin: "22px 0" }} />
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
+                <p style={{ fontSize: 13, color: SUBTLE, margin: 0 }}>
+                  Don't have an account?{" "}
+                  <button type="button" onClick={() => go("signup-start")} style={{ background: "none", border: "none", cursor: "pointer", color: ACCENT, fontFamily: "inherit", fontSize: 13, fontWeight: 600, padding: 0 }}>
+                    Create workspace
+                  </button>
+                </p>
+                <p style={{ fontSize: 13, color: SUBTLE, margin: 0 }}>
+                  Have an invite code?{" "}
+                  <button type="button" onClick={() => go("invite")} style={{ background: "none", border: "none", cursor: "pointer", color: ACCENT, fontFamily: "inherit", fontSize: 13, fontWeight: 600, padding: 0 }}>
+                    Activate account
+                  </button>
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Auth Form */}
-      <div className="flex w-full lg:w-1/2 flex-col justify-center bg-white dark:bg-[var(--panel-solid)] px-6 sm:px-12 md:px-20 lg:px-24 relative shadow-2xl lg:shadow-[0_0_60px_-15px_rgba(0,0,0,0.1)]">
-        
-        <div className="w-full max-w-[420px] mx-auto animate-in fade-in slide-in-from-right-8 duration-700 mt-20 lg:mt-0">
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold tracking-tight text-[var(--text-strong)]">
-              {titleMap[view]}
-            </h2>
-            <p className="mt-2 text-sm text-[var(--text-soft)] leading-relaxed">
-              {subtitleMap[view]}
-            </p>
-          </div>
-
-          {message && (
-            <div className={`mb-6 rounded-lg border px-4 py-3 text-xs font-bold ${
-              isError ? "border-rose-500/20 bg-rose-500/10 text-rose-500" 
-                      : "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
-            }`}>
-              {message}
             </div>
           )}
 
-          <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
-            <div className="space-y-6">
-              {["signup", "verify", "invite"].includes(view) && (
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-[var(--text-strong)] px-1 block">Full name</label>
-                  <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
-                    <input 
-                      className="w-full rounded-lg border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-                      placeholder="Ananya Sharma"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  </div>
+          {/* ── SIGNUP START ── */}
+          {step === "signup-start" && (
+            <div style={cardStyle}>
+              <h1 style={headline}>Create your workspace</h1>
+              <p style={sub}>We'll send a 6-digit code to verify your email</p>
+              <form onSubmit={e => {
+                e.preventDefault();
+                if (!isEmailValid(f.email)) { setError("Please enter a valid email"); return; }
+                wrap(async () => {
+                  await api.post("/auth/start-signup", { name: f.name, email: f.email });
+                  setSuccess("Verification code sent to your email.");
+                  toast.success("Code sent — check your inbox.");
+                  go("signup-verify");
+                });
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {error && <Msg type="error" text={error} />}
+                  {success && <Msg type="ok" text={success} />}
+                  <div><Label text="Full name" required /><Input icon={User} placeholder="Jane Smith" value={f.name} onChange={up("name")} required /></div>
+                  <div><Label text="Work email" required /><Input icon={Mail} type="email" placeholder="you@company.com" value={f.email} onChange={up("email")} required isValid={f.email ? isEmailValid(f.email) : undefined} /></div>
+                  <Btn loading={loading}>Send verification code</Btn>
                 </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-[var(--text-strong)] px-1 block">Email address</label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
-                  <input 
-                    className="w-full rounded-lg border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3 pl-12 pr-4 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-                    placeholder="name@company.com"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {(view === "verify" || view === "invite" || view === "reset") && (
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-[var(--text-strong)] px-1 block">
-                    {view === "verify" ? "Verification code" : view === "invite" ? "Invitation code" : "Reset code"}
-                  </label>
-                  <div className="relative">
-                    <Ticket className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" size={18} />
-                    <input 
-                      className="w-full rounded-lg border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3 pl-12 text-center text-lg font-bold tracking-[0.5em] text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-                      maxLength={6}
-                      placeholder="000000"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {(view === "login" || view === "verify" || view === "invite" || view === "reset") && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-sm font-semibold text-[var(--text-strong)]">Password</label>
-                    {view === "login" && (
-                      <button type="button" onClick={() => switchView("forgot")} className="text-sm font-semibold text-[var(--accent)] hover:underline underline-offset-4">Forgot password?</button>
-                    )}
-                  </div>
-                  <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] group-focus-within:text-[var(--accent)] transition-colors" size={18} />
-                    <input 
-                      className="w-full rounded-lg border border-[var(--workspace-divider)] bg-[var(--workspace-input)] py-3 pl-12 pr-12 text-sm text-[var(--text-strong)] outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-              )}
+              </form>
+              <div style={{ marginTop: 14 }}><Ghost onClick={() => go("login")}>← Back to sign in</Ghost></div>
             </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="group mt-10 flex w-full items-center justify-center gap-3 rounded-lg bg-[var(--button-primary-bg)] py-3.5 text-sm font-bold text-[var(--button-primary-text)] shadow-lg shadow-[var(--accent)]/20 transition-all hover:bg-[var(--button-primary-hover)] disabled:opacity-50"
-            >
-              {loading ? <RefreshCcw className="animate-spin" size={18} /> : primaryLabelMap[view]}
-              {!loading && <ArrowRight size={18} className="ml-1 transition-transform group-hover:translate-x-1" />}
-            </button>
-          </form>
-
-          <div className="mt-8 border-t border-[var(--workspace-divider)] pt-6 text-center">
-            {view === "login" ? (
-              <div className="space-y-3">
-                <p className="text-sm text-[var(--text-soft)]">
-                  Need a workspace?{" "}
-                  <button type="button" onClick={() => switchView("signup")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Create account</button>
-                </p>
-                <p className="text-sm text-[var(--text-soft)]">
-                  Have an invite code?{" "}
-                  <button type="button" onClick={() => switchView("invite")} className="font-bold text-[var(--text-strong)] hover:text-[var(--accent)] transition-colors">Join workspace</button>
-                </p>
+          {/* ── SIGNUP VERIFY ── */}
+          {step === "signup-verify" && (
+            <div style={cardStyle}>
+              <h1 style={headline}>Verify and set a password</h1>
+              <p style={sub}>Enter the code sent to <span style={{ color: ACCENT, fontWeight: 600 }}>{f.email}</span></p>
+              <form onSubmit={e => {
+                e.preventDefault();
+                const checks = pwChecks(f.pw);
+                if (!checks.minLen || !checks.hasUpper || !checks.hasLower || !checks.hasNum) {
+                  setError("Password does not meet the requirements below");
+                  return;
+                }
+                wrap(async () => {
+                  await api.post("/auth/complete-signup", { name: f.name, email: f.email, otp: f.otp, password: f.pw });
+                  setSuccess("Account created.");
+                  toast.success("Account created — redirecting to sign in…");
+                  setTimeout(() => go("login"), 1500);
+                });
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {error && <Msg type="error" text={error} />}
+                  {success && <Msg type="ok" text={success} />}
+                  <div>
+                    <Label text="6-digit code" required />
+                    <Input placeholder="123456" maxLength={6} value={f.otp} onChange={up("otp")} required style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.15em", fontSize: 16, fontWeight: 600 }} />
+                  </div>
+                  <div>
+                    <Label text="Set password" required />
+                    <Input type={showPw ? "text" : "password"} placeholder="Min 8 characters" value={f.pw} onChange={up("pw")} required right={<button type="button" onClick={() => setShowPw(!showPw)} style={{ background: "none", border: "none", cursor: "pointer", color: "#A6A296", display: "flex" }}>{showPw ? <EyeOff size={15}/> : <Eye size={15}/>}</button>} />
+                    <PwChecklist pw={f.pw} />
+                  </div>
+                  <Btn loading={loading}>Complete setup</Btn>
+                </div>
+              </form>
+              <div style={{ marginTop: 14, display: "flex", gap: 14, alignItems: "center" }}>
+                <Ghost onClick={() => go("login")}>← Back to sign in</Ghost>
+                <Ghost onClick={() => go("signup-start")}>Resend code</Ghost>
               </div>
-            ) : (
-              <button onClick={() => switchView("login")} className="text-sm font-bold text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors inline-flex items-center gap-2 mx-auto">
-                Back to login
-              </button>
-            )}
-          </div>
-          
-          <p className="mt-12 text-center text-xs font-bold uppercase tracking-widest text-[var(--text-soft)] opacity-40">
-            &copy; 2026 SafeUp Systems Inc.
-          </p>
+            </div>
+          )}
+
+          {/* ── FORGOT ── */}
+          {step === "forgot" && (
+            <div style={cardStyle}>
+              <h1 style={headline}>Forgot password?</h1>
+              <p style={sub}>Enter your registered email to get a reset code</p>
+              <form onSubmit={e => {
+                e.preventDefault();
+                const targetEmail = f.forgotEmail || f.email;
+                if (!isEmailValid(targetEmail)) { setError("Please enter a valid email"); return; }
+                wrap(async () => {
+                  await api.post("/auth/forgot-password", { email: targetEmail });
+                  setF(p => ({ ...p, forgotEmail: targetEmail }));
+                  setSuccess("Reset code sent, if that account exists.");
+                  toast.info("Reset code sent to your inbox.");
+                  go("reset");
+                });
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {error && <Msg type="error" text={error} />}
+                  {success && <Msg type="ok" text={success} />}
+                  <div><Label text="Account email" required /><Input icon={Mail} type="email" placeholder="you@example.com" value={f.forgotEmail || f.email} onChange={up("forgotEmail")} required isValid={f.forgotEmail ? isEmailValid(f.forgotEmail) : undefined} /></div>
+                  <Btn loading={loading}>Send reset code</Btn>
+                </div>
+              </form>
+              <div style={{ marginTop: 14, display: "flex", gap: 14, alignItems: "center" }}>
+                <Ghost onClick={() => go("login")}>← Back to sign in</Ghost>
+                <Ghost onClick={() => go("reset")}>Already have a code?</Ghost>
+              </div>
+            </div>
+          )}
+
+          {/* ── RESET ── */}
+          {step === "reset" && (
+            <div style={cardStyle}>
+              <h1 style={headline}>Set a new password</h1>
+              <p style={sub}>Enter the reset code sent to your email</p>
+              <form onSubmit={e => {
+                e.preventDefault();
+                const targetEmail = f.forgotEmail || f.email;
+                const checks = pwChecks(f.resetPw);
+                if (!checks.minLen || !checks.hasUpper || !checks.hasLower || !checks.hasNum) {
+                  setError("Password does not meet the requirements below");
+                  return;
+                }
+                wrap(async () => {
+                  await api.post("/auth/reset-password", { email: targetEmail, reset_code: f.resetCode, password: f.resetPw });
+                  setSuccess("Password updated.");
+                  toast.success("Password updated — redirecting to sign in…");
+                  setTimeout(() => go("login"), 1500);
+                });
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {error && <Msg type="error" text={error} />}
+                  {success && <Msg type="ok" text={success} />}
+                  <div><Label text="Account email" required /><Input icon={Mail} type="email" placeholder="you@example.com" value={f.forgotEmail || f.email} onChange={up("forgotEmail")} required /></div>
+                  <div><Label text="6-digit reset code" required /><Input placeholder="123456" maxLength={6} value={f.resetCode} onChange={up("resetCode")} required style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.15em", fontSize: 16, fontWeight: 600 }} /></div>
+                  <div>
+                    <Label text="New password" required />
+                    <Input type={showPw ? "text" : "password"} placeholder="Min 8 characters" value={f.resetPw} onChange={up("resetPw")} required right={<button type="button" onClick={() => setShowPw(!showPw)} style={{ background: "none", border: "none", cursor: "pointer", color: "#A6A296", display: "flex" }}>{showPw ? <EyeOff size={15}/> : <Eye size={15}/>}</button>} />
+                    <PwChecklist pw={f.resetPw} />
+                  </div>
+                  <Btn loading={loading}>Update password</Btn>
+                </div>
+              </form>
+              <div style={{ marginTop: 14, display: "flex", gap: 14, alignItems: "center" }}>
+                <Ghost onClick={() => go("login")}>← Back to sign in</Ghost>
+                <Ghost onClick={() => go("forgot")}>Resend code</Ghost>
+              </div>
+            </div>
+          )}
+
+          {/* ── INVITE ── */}
+          {step === "invite" && (
+            <div style={cardStyle}>
+              <h1 style={headline}>Join a workspace</h1>
+              <p style={sub}>Activate your account with your invite code</p>
+              <form onSubmit={e => {
+                e.preventDefault();
+                const checks = pwChecks(f.invPw);
+                if (!checks.minLen || !checks.hasUpper || !checks.hasLower || !checks.hasNum) {
+                  setError("Password does not meet the requirements below");
+                  return;
+                }
+                wrap(async () => {
+                  await api.post("/auth/verify-invite", { email: f.invEmail, invite_code: f.invCode, password: f.invPw });
+                  setSuccess("Account activated.");
+                  toast.success("Account activated — redirecting to sign in…");
+                  setTimeout(() => go("login"), 1500);
+                });
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {error && <Msg type="error" text={error} />}
+                  {success && <Msg type="ok" text={success} />}
+                  <div><Label text="Your email" required /><Input icon={Mail} type="email" placeholder="you@example.com" value={f.invEmail} onChange={up("invEmail")} required isValid={f.invEmail ? isEmailValid(f.invEmail) : undefined} /></div>
+                  <div><Label text="Invite code" required /><Input placeholder="ABC123" maxLength={6} value={f.invCode} onChange={e => setF(p => ({ ...p, invCode: e.target.value.toUpperCase() }))} required style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.2em", fontSize: 16, fontWeight: 600 }} /></div>
+                  <div>
+                    <Label text="Set password" required />
+                    <Input type={showPw ? "text" : "password"} placeholder="Min 8 characters" value={f.invPw} onChange={up("invPw")} required right={<button type="button" onClick={() => setShowPw(!showPw)} style={{ background: "none", border: "none", cursor: "pointer", color: "#A6A296", display: "flex" }}>{showPw ? <EyeOff size={15}/> : <Eye size={15}/>}</button>} />
+                    <PwChecklist pw={f.invPw} />
+                  </div>
+                  <Btn loading={loading}>Activate account</Btn>
+                </div>
+              </form>
+              <div style={{ marginTop: 14 }}><Ghost onClick={() => go("login")}>← Back to sign in</Ghost></div>
+            </div>
+          )}
+
         </div>
       </div>
+
+      {/* ── Right: Showcase Panel ── */}
+      <div style={{
+        width: 440, flexShrink: 0, background: "#ffffff",
+        borderLeft: `1px solid ${LINE}`,
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        padding: "60px 52px",
+      }}>
+        <h2 style={{
+          fontFamily: "'Iowan Old Style', 'Source Serif 4', Georgia, ui-serif, serif",
+          fontSize: 27, fontWeight: 600, lineHeight: 1.35, marginBottom: 14, letterSpacing: "-0.01em", color: INK,
+        }}>
+          Your documents, ready to answer questions
+        </h2>
+        <p style={{ color: SUBTLE, fontSize: 13.5, lineHeight: 1.7, marginBottom: 38 }}>
+          Upload a PDF, and ask it anything — DocMind reads across your whole library and cites what it finds.
+        </p>
+
+        {/* Feature list — rule-based, not repeated cards */}
+        <div>
+          {FEATURES.map(({ Icon, label, desc }, idx) => (
+            <div key={label} style={{
+              display: "flex", alignItems: "flex-start", gap: 14,
+              padding: "18px 0",
+              borderTop: idx === 0 ? "none" : `1px solid ${LINE}`,
+            }}>
+              <Icon size={17} color={ACCENT} style={{ marginTop: 2, flexShrink: 0 }} />
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: INK, marginBottom: 2 }}>{label}</p>
+                <p style={{ fontSize: 12.5, color: SUBTLE, lineHeight: 1.55 }}>{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p style={{ marginTop: 30, paddingTop: 20, borderTop: `1px solid ${LINE}`, fontSize: 11.5, color: "#A6A296" }}>
+          AES-256 encrypted · 99.99% AWS S3 uptime
+        </p>
+      </div>
+
     </div>
   );
 }

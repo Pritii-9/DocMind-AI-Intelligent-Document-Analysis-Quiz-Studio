@@ -29,7 +29,7 @@ export default function Sidebar({
   selectedDocumentName,
   collapsed = false,
 }: SidebarProps) {
-  const { role, userName } = useAuth();
+  const { user } = useAuth();
 
   return (
     <aside 
@@ -45,7 +45,7 @@ export default function Sidebar({
           </div>
           {!collapsed && (
             <span className="font-display text-xl font-bold tracking-tight text-[var(--text-strong)]">
-              SafeUp<span className="text-[var(--accent)]">.</span>
+              DocMind<span className="text-[var(--accent)]">.AI</span>
             </span>
           )}
         </div>
@@ -108,12 +108,12 @@ export default function Sidebar({
       <div className="p-4 border-t border-[var(--border-strong)] bg-[var(--panel-muted)]">
         <div className={`flex items-center gap-3 p-2 rounded-2xl ${collapsed ? "justify-center" : ""}`}>
           <div className="h-9 w-9 rounded-xl bg-[var(--panel)] border border-[var(--border-strong)] flex items-center justify-center text-xs font-bold text-[var(--text-soft)] shadow-inner">
-            {userName?.charAt(0).toUpperCase() || "U"}
+            {user?.name?.charAt(0).toUpperCase() || "U"}
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-xs font-bold text-[var(--text-strong)] truncate">{userName}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">{role}</p>
+              <p className="text-xs font-bold text-[var(--text-strong)] truncate">{user?.name || "User"}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">{user?.role || "Member"}</p>
             </div>
           )}
         </div>

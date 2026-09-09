@@ -1,125 +1,100 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
-@variant dark (&:where(.dark, .dark *));
 
 :root {
-  --app-bg: #f8fafc;
-  --panel: rgba(255, 255, 255, 0.95);
-  --panel-muted: rgba(241, 245, 249, 0.55);
-  --panel-strong: #0f172a;
-  --panel-solid: #ffffff;
-  --workspace-shell: #f1f5f9;
-  --workspace-frame: rgba(255, 255, 255, 0.92);
-  --workspace-border: rgba(15, 23, 42, 0.08);
-  --workspace-divider: rgba(15, 23, 42, 0.1);
-  --workspace-hover: rgba(15, 23, 42, 0.05);
-  --workspace-input: rgba(255, 255, 255, 0.7);
-  --viewer-bg: #e2e8f0;
-  --button-primary-bg: #0c6b63;
-  --button-primary-hover: #095850;
-  --button-primary-text: #f8fffd;
-  --button-secondary-bg: rgba(17, 32, 46, 0.08);
-  --button-secondary-hover: rgba(17, 32, 46, 0.14);
-  --button-secondary-text: #11202e;
-  --button-secondary-border: rgba(17, 32, 46, 0.12);
-  --accent: #0f766e;
-  --accent-soft: rgba(15, 118, 110, 0.12);
-  --text-strong: #11202e;
-  --text-soft: #5d6875;
-  --border-strong: rgba(17, 32, 46, 0.12);
-  color: var(--text-strong);
-  background: var(--app-bg);
-  font-family: "Inter", "Segoe UI", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif;
-  scroll-behavior: smooth;
+  --app-bg:       #09090b;
+  --surface:      #111113;
+  --surface-2:    #18181b;
+  --surface-3:    #1e1e23;
+  --border:       #27272a;
+  --border-soft:  rgba(255,255,255,0.06);
+  --text:         #e4e4e7;
+  --text-soft:    #71717a;
+  --text-muted:   #3f3f46;
+  --accent:       #7c3aed;
+  --accent-2:     #6d28d9;
+  --accent-glow:  rgba(124,58,237,0.12);
+  --accent-border:rgba(124,58,237,0.3);
+  --green:        #10b981;
+  --green-glow:   rgba(16,185,129,0.1);
+  --red:          #f87171;
+  --amber:        #f59e0b;
+  --sky:          #38bdf8;
+  --radius-sm:    8px;
+  --radius:       12px;
+  --radius-lg:    16px;
+  --radius-xl:    20px;
+  --shadow-card:  0 0 0 1px rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.5);
 }
 
-html.dark {
-  --app-bg: #07131d;
-  --panel: rgba(9, 22, 33, 0.92);
-  --panel-muted: rgba(19, 35, 49, 0.92);
-  --panel-strong: #050d14;
-  --panel-solid: #0b0f1a;
-  --workspace-shell: #06080f;
-  --workspace-frame: rgba(11, 15, 26, 0.84);
-  --workspace-border: rgba(255, 255, 255, 0.08);
-  --workspace-divider: rgba(255, 255, 255, 0.1);
-  --workspace-hover: rgba(255, 255, 255, 0.05);
-  --workspace-input: rgba(255, 255, 255, 0.05);
-  --viewer-bg: #05070d;
-  --button-primary-bg: #1ea99b;
-  --button-primary-hover: #2dd4bf;
-  --button-primary-text: #04110f;
-  --button-secondary-bg: rgba(255, 255, 255, 0.08);
-  --button-secondary-hover: rgba(255, 255, 255, 0.14);
-  --button-secondary-text: #e8f0f5;
-  --button-secondary-border: rgba(255, 255, 255, 0.12);
-  --accent: #2dd4bf;
-  --accent-soft: rgba(45, 212, 191, 0.12);
-  --text-strong: #e8f0f5;
-  --text-soft: #93a7b7;
-  --border-strong: rgba(148, 163, 184, 0.18);
-}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html,
-body,
-#root {
-  min-height: 100%;
-}
+html { scroll-behavior: smooth; }
 
 body {
-  margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.1), transparent 30%),
-    var(--app-bg);
-  color: var(--text-strong);
-  transition: background-color 180ms ease, color 180ms ease;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--app-bg);
+  color: var(--text);
 }
 
-* {
-  box-sizing: border-box;
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+
+/* ── Autofill fix ── */
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 999px #18181b inset !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff;
+  transition: background-color 99999s;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+/* ── Animations ── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulseDot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.3; transform:scale(0.7); } }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes slideInLeft { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:none; } }
+@keyframes glow { 0%,100% { box-shadow:0 0 0 0 rgba(124,58,237,0); } 50% { box-shadow:0 0 20px 4px rgba(124,58,237,0.2); } }
+
+.animate-in  { animation: fadeSlideUp 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
+.fade-in     { animation: fadeIn 0.2s ease forwards; }
+.slide-in    { animation: slideInLeft 0.2s ease forwards; }
+.spin        { animation: spin 0.75s linear infinite; }
+.pulse-dot   { animation: pulseDot 1.4s ease-in-out infinite; }
+
+/* ── Gradient text ── */
+.gradient-text {
+  background: linear-gradient(135deg, #c4b5fd 0%, #7c3aed 50%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-button {
-  cursor: pointer;
+/* ── Glass card ── */
+.glass {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
-.font-display {
-  font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
+/* ── Glow ring ── */
+.glow-ring { animation: glow 2s ease-in-out infinite; }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+/* ── Mono ── */
+.mono { font-family: "JetBrains Mono", "Fira Code", monospace; }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(93, 104, 117, 0.32);
-}
-
-@keyframes fade-slide {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Shimmer skeleton ── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
 }

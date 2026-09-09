@@ -1,125 +1,89 @@
 <div align="center">
 
-# 🔒 SafeUp
-### **Secure Document Workspace & Streaming Platform**
+# 🧠 DocMind AI
+### **Enterprise Neural Document Intelligence & Interactive Assessment Platform**
 
-[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![AWS S3](https://img.shields.io/badge/AWS_S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-blue?style=for-the-badge)](https://langchain-ai.github.io/langgraph/)
+[![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![LangChain](https://img.shields.io/badge/LangChain_RAG-121212?style=for-the-badge&logo=chainlink&logoColor=white)](https://python.langchain.com/)
+[![Groq LLM](https://img.shields.io/badge/Groq_Llama_3.3-f97316?style=for-the-badge)](https://groq.com/)
+[![AWS S3](https://img.shields.io/badge/AWS_S3_Terraform-569A31?style=for-the-badge&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
+[![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 
 ---
 
-**SafeUp** is a multi-tenant document management platform. It combines authenticated PDF streaming with a LangGraph-powered chat interface, allowing users to securely store files and query their workspace data.
+**DocMind AI** is a high-throughput, enterprise-grade Document Intelligence and Assessment platform. It integrates secure byte-range PDF streaming from AWS S3, real-time RAG (Retrieval-Augmented Generation) document query capabilities, and an AI-driven Quiz & Mock Test Studio with persistent study notes.
 
-[**Live Demo**](https://pdf-streaming.vercel.app/) • [**Features**](#-features) • [**Tech Stack**](#-tech-stack) • [**Architecture**](#-architecture) • [**Setup**](#-local-setup)
-
-</div>
-
-## 📸 Preview
-
-<div align="center">
-  <img src="./screenshots/dashboard.png" width="85%" alt="SafeUp Dashboard" />
-  <br />
-  <em>Workspace dashboard with real-time activity feed and document chat.</em>
-  <br /><br />
-  <img src="./screenshots/login.png" width="85%" alt="SafeUp Login" />
-  <br />
-  <em>Secure authentication flow with multi-tenant workspaces.</em>
 </div>
 
 ---
 
-## ✨ Features
+## ✨ Enterprise Capabilities
 
-### 🤖 AI & Search
-- **Workspace Agent**: Powered by LangGraph to let users query their documents and track workspace activity.
-- **Document Chat (RAG)**: Extracts information from uploaded PDFs using semantic search and cloud-based embeddings.
-- **Streaming Responses**: Delivers real-time chat output using Server-Sent Events (SSE).
+### 🧠 1. AI Quiz Studio & Mock Test Generation
+- **Automated MCQ Generation**: Dynamically extracts semantic context from multi-page PDFs to synthesize structured, high-yield Multiple Choice Questions (MCQs).
+- **Explanation Engine**: Instant, detailed rationale for correct vs. incorrect options to accelerate concept mastery.
+- **Persistent Essential Notes**: Integrated rich notes module per question with debounced auto-saving to MongoDB.
 
-### 🔒 Security & Access
-- **Secure File Streaming**: PDFs are never exposed via public URLs. They are streamed directly from AWS S3 using authenticated byte-range requests.
-- **Data Isolation**: Documents and user data are strictly isolated by workspace.
-- **Admin Controls**: Includes invite-based onboarding, user activation toggles, and OTP verification.
+### 🤖 2. LangChain RAG & Document Chat
+- **RAG Architecture**: Vector-embedded semantic search against uploaded PDFs using LangChain and Groq Llama 3.3.
+- **Streaming Responses**: Real-time response generation via Server-Sent Events (SSE).
 
-### 📊 Dashboard & Monitoring
-- **Usage Metrics**: Tracks storage usage, document counts, and active team members.
-- **Live Activity Feed**: Broadcasts real-time updates for workspace events (like file uploads) via SSE.
-- **Built-in Viewer**: Integrated PDF viewer supporting zoom, rotation, and secure rendering.
+### 🔒 3. AWS S3 Byte-Range Streaming & Infrastructure (IaC)
+- **Zero-Copy Byte-Range Streaming**: Authenticated byte-range requests stream heavy PDFs directly from AWS S3 without loading full files into backend memory.
+- **Terraform Infrastructure (IaC)**: Includes `infra/terraform/` modules for AWS S3 provisioning with SSE-AES256 encryption, strictly blocked public access, CORS rules, and 30-day lifecycle transitions.
 
----
-
-## 🛠️ Tech Stack
-
-### Frontend
-- **Framework:** React 18 (Vite)
-- **Styling:** Vanilla CSS (Glassmorphism, Dark Mode)
-- **Icons:** Lucide React
-- **State:** React Hooks & SSE Listeners
-
-### Backend
-- **Server:** Flask (Python 3.11+)
-- **WSGI:** Gunicorn + Gevent (for concurrent SSE)
-- **Auth:** JWT (flask-jwt-extended)
-- **Storage:** AWS S3 (boto3)
-- **Database:** MongoDB Atlas (pymongo)
-
-### AI Pipeline
-- **Orchestration:** LangGraph
-- **RAG:** LangChain & Sentence Transformers
-- **Embeddings:** Nomic-Embed-Text / Groq API
-- **LLM:** Groq Llama 3.3
+### 🛡️ 4. Multi-Tenant Enterprise Security
+- **Bcrypt Hashing**: Safe, enterprise password hashing with robust 72-byte truncation compatibility.
+- **Role-Based Access Control (RBAC)**: Admin and User scopes with OTP email verification and invite token activation workflows.
 
 ---
 
-## 🏗️ Architecture
+## 🛠️ System Architecture
 
 ```mermaid
 graph TD
-    User((User)) -->|React + Vite| Frontend[Frontend UI]
-    Frontend -->|JWT Auth| Backend[Flask API]
-    Backend -->|Auth/Data| DB[(MongoDB Atlas)]
-    Backend -->|PDF Storage| S3[AWS S3]
-    Backend -->|RAG / Agent| AI[LangGraph + Groq]
-    AI -->|Vectors| DB
+    Client[React 19 Frontend] -->|JWT Auth / CORS| API[FastAPI Backend Server]
+    API -->|Metadata / Users / Notes| DB[(MongoDB Atlas)]
+    API -->|Byte-Range Streaming| S3[AWS S3 Storage]
+    API -->|Text Extraction & Context| RAG[LangChain RAG Engine]
+    RAG -->|Prompt Context| Groq[Groq Llama 3.3 LLM]
+    Groq -->|Structured MCQs / Chat| API
 ```
 
 ---
 
-## 🚀 Local Setup
+## 🚀 Getting Started
 
-### Backend
-1. **Navigate & Install dependencies:**
-   ```bash
-   cd backend
-   poetry install
-   ```
-2. **Environment Configuration:**
-   Create a `.env` file based on `.env.example.txt` with your MongoDB, AWS, and Groq keys.
-3. **Launch the server:**
-   ```bash
-   poetry run python main.py
-   ```
+### Prerequisites
+- Python 3.11+ / Poetry
+- Node.js 18+ / npm
+- MongoDB Atlas Cluster
+- AWS S3 Credentials & Groq API Key
 
-### Frontend
-1. **Navigate & Install dependencies:**
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. **Launch the development server:**
-   ```bash
-   npm run dev
-   ```
+### Backend Setup
+```bash
+cd backend
+poetry install
+poetry run uvicorn main.py:app --reload --port 8000
+```
 
----
+### Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## 💼 Project Goal
-SafeUp was built to provide a secure environment for managing and querying sensitive documents. By eliminating public S3 links and using a strictly authenticated backend, it allows teams to safely collaborate and extract insights from their data without compromising security.
+### Terraform Infrastructure Deployment
+```bash
+cd infra/terraform
+terraform init
+terraform apply -var-file="terraform.tfvars.example"
+```
 
 ---
 
 <div align="center">
-  <sub>Built by **Priti** • © 2026 SafeUp Systems Inc.</sub>
+  <sub>Engineered by **Priti** • © 2026 DocMind AI Systems</sub>
 </div>

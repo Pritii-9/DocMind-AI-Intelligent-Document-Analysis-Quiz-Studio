@@ -1,546 +1,334 @@
+"""Auth router — register, OTP verify, login, invite, team management."""
 import re
 import secrets
 import string
-from datetime import datetime, timedelta
+import smtplib
+from datetime import datetime, timedelta, timezone
+from email.mime.text import MIMEText
 
-import threading
 from bson import ObjectId
-from flask import Blueprint, current_app, jsonify, request
-from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required
-from flask_mail import Message
-from werkzeug.security import check_password_hash, generate_password_hash
+from fastapi import APIRouter, Depends, HTTPException
+import bcrypt
+from pydantic import BaseModel, EmailStr
 
-from extensions import mail
+from auth_utils import create_access_token, get_current_user, require_admin
+from config import settings
+from database import get_db
 
-auth_bp = Blueprint("auth", __name__)
+router = APIRouter(prefix="/auth", tags=["auth"])
 
-EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-def _json_body():
-    return request.get_json(silent=True) or {}
+def _hash_password(password: str) -> str:
+    pwd_bytes = password.encode("utf-8")[:72]
+    return bcrypt.hashpw(pwd_bytes, bcrypt.gensalt()).decode("utf-8")
 
 
-def _normalize_email(email: str) -> str:
-    return (email or "").strip().lower()
+def _verify_password(password: str, hashed: str) -> bool:
+    if not hashed:
+        return False
+    pwd_bytes = password.encode("utf-8")[:72]
+    try:
+        return bcrypt.checkpw(pwd_bytes, hashed.encode("utf-8"))
+    except Exception:
+        return False
 
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _validate_email(email: str) -> bool:
-    return bool(EMAIL_PATTERN.match(email))
+    return bool(EMAIL_RE.match(email))
 
 
-def _validate_password(password: str) -> tuple[bool, str]:
-    if len(password) < 8:
+def _validate_password(pw: str) -> tuple[bool, str]:
+    if len(pw) < 8:
         return False, "Password must be at least 8 characters"
-    if not re.search(r"[A-Z]", password):
-        return False, "Password must contain at least one uppercase letter"
-    if not re.search(r"[a-z]", password):
-        return False, "Password must contain at least one lowercase letter"
-    if not re.search(r"\d", password):
-        return False, "Password must contain at least one number"
+    if not re.search(r"[A-Z]", pw):
+        return False, "Password must contain an uppercase letter"
+    if not re.search(r"[a-z]", pw):
+        return False, "Password must contain a lowercase letter"
+    if not re.search(r"\d", pw):
+        return False, "Password must contain a number"
     return True, ""
 
 
-def _generate_short_code():
-    return "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-
-
-def _generate_numeric_code():
+def _gen_otp() -> str:
     return f"{secrets.randbelow(900000) + 100000}"
 
 
-def _admin_scope_filter(workspace_owner: str):
-    return {"$or": [{"email": workspace_owner}, {"workspace_owner": workspace_owner}]}
+def _gen_invite_code() -> str:
+    return "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
 
 
-def _send_email_async(app, msg):
-    def send():
-        with app.app_context():
-            try:
-                mail.send(msg)
-            except Exception as e:
-                app.logger.error(f"Async email failed: {e}")
-    threading.Thread(target=send, daemon=True).start()
+def _send_email(to: str, subject: str, body: str):
+    """Simple synchronous SMTP send — runs in a background thread from endpoint."""
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = settings.MAIL_USERNAME
+    msg["To"] = to
+    try:
+        with smtplib.SMTP(settings.MAIL_SERVER, settings.MAIL_PORT) as smtp:
+            if settings.MAIL_USE_TLS:
+                smtp.starttls()
+            smtp.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
+            smtp.sendmail(settings.MAIL_USERNAME, [to], msg.as_string())
+    except Exception as e:
+        print(f"[MAIL ERROR] {e}")
 
-def _send_verification_email(email: str, otp: str):
-    msg = Message("Verify your account", recipients=[email])
-    msg.body = f"Your OTP is: {otp}. It expires in 10 minutes."
-    _send_email_async(current_app._get_current_object(), msg)
+
+def _send_email_bg(to: str, subject: str, body: str):
+    import threading
+    threading.Thread(target=_send_email, args=(to, subject, body), daemon=True).start()
 
 
-@auth_bp.route("/start-signup", methods=["POST"])
-def start_signup():
-    data = _json_body()
-    name = (data.get("name") or "").strip()
-    email = _normalize_email(data.get("email", ""))
+# ── Schemas ────────────────────────────────────────────────────────────────────
 
+class StartSignupIn(BaseModel):
+    name: str
+    email: str
+
+
+class CompleteSignupIn(BaseModel):
+    name: str
+    email: str
+    otp: str
+    password: str
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
+class ForgotPasswordIn(BaseModel):
+    email: str
+
+
+class ResetPasswordIn(BaseModel):
+    email: str
+    reset_code: str
+    password: str
+
+
+class InviteMemberIn(BaseModel):
+    name: str
+    email: str
+
+
+class VerifyInviteIn(BaseModel):
+    email: str
+    invite_code: str
+    password: str
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
+@router.post("/start-signup")
+def start_signup(body: StartSignupIn):
+    name = body.name.strip()
+    email = body.email.strip().lower()
     if not name:
-        return jsonify({"msg": "Name is required"}), 400
+        raise HTTPException(400, "Name is required")
     if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
+        raise HTTPException(400, "Invalid email address")
 
-    users = current_app.db.users
-    existing_user = users.find_one({"email": email})
+    db = get_db()
+    existing = db.users.find_one({"email": email})
+    if existing and (existing.get("verified") or existing.get("password")):
+        raise HTTPException(409, "Email already registered. Please login.")
 
-    if existing_user and (existing_user.get("verified") or existing_user.get("password")):
-        return jsonify({"msg": "Email already registered. Please login with your existing account."}), 409
-
-    otp = _generate_numeric_code()
+    otp = _gen_otp()
+    now = datetime.now(timezone.utc)
     payload = {
-        "name": name,
-        "email": email,
-        "role": "admin",
-        "otp": otp,
-        "otp_expires_at": datetime.utcnow() + timedelta(minutes=10),
-        "verified": False,
-        "is_active": True,
-        "workspace_owner": email,
+        "name": name, "email": email, "role": "admin",
+        "otp": otp, "otp_expires_at": now + timedelta(minutes=10),
+        "verified": False, "is_active": True, "workspace_owner": email,
     }
-
-    if existing_user:
-        users.update_one(
-            {"email": email},
-            {
-                "$set": payload,
-                "$setOnInsert": {"created_at": datetime.utcnow()},
-                "$unset": {"password": ""},
-            },
-            upsert=True,
-        )
+    if existing:
+        db.users.update_one({"email": email}, {"$set": payload})
     else:
-        payload["created_at"] = datetime.utcnow()
-        users.insert_one(payload)
+        payload["created_at"] = now
+        db.users.insert_one(payload)
 
-    try:
-        _send_verification_email(email, otp)
-    except Exception:
-        return jsonify({"msg": "Unable to send verification email right now."}), 502
-
-    return jsonify({"msg": "Verification code sent"}), 200
+    _send_email_bg(email, "Verify your account", f"Your OTP is: {otp}. It expires in 10 minutes.")
+    return {"msg": "Verification code sent"}
 
 
-@auth_bp.route("/check-email", methods=["GET"])
-def check_email():
-    email = _normalize_email(request.args.get("email", ""))
+@router.post("/complete-signup")
+def complete_signup(body: CompleteSignupIn):
+    email = body.email.strip().lower()
     if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
+        raise HTTPException(400, "Invalid email")
+    if len(body.otp) != 6 or not body.otp.isdigit():
+        raise HTTPException(400, "OTP must be 6 digits")
+    ok, err = _validate_password(body.password)
+    if not ok:
+        raise HTTPException(400, err)
 
-    users = current_app.db.users
-    exists = users.find_one({"email": email}) is not None
-    return jsonify({"exists": exists}), 200
-
-
-@auth_bp.route("/complete-signup", methods=["POST"])
-def complete_signup():
-    data = _json_body()
-    name = (data.get("name") or "").strip()
-    email = _normalize_email(data.get("email", ""))
-    otp = (data.get("otp") or "").strip()
-    password = data.get("password") or ""
-
-    if not name:
-        return jsonify({"msg": "Name is required"}), 400
-    if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
-    if len(otp) != 6 or not otp.isdigit():
-        return jsonify({"msg": "OTP must be a 6-digit code"}), 400
-
-    is_valid_password, password_error = _validate_password(password)
-    if not is_valid_password:
-        return jsonify({"msg": password_error}), 400
-
-    users = current_app.db.users
-    user = users.find_one({"email": email, "otp": otp, "role": "admin"})
+    db = get_db()
+    user = db.users.find_one({"email": email, "otp": body.otp})
     if not user:
-        return jsonify({"msg": "Invalid email or verification code"}), 400
+        raise HTTPException(400, "Invalid email or OTP")
+    if datetime.now(timezone.utc) > user["otp_expires_at"].replace(tzinfo=timezone.utc):
+        raise HTTPException(400, "OTP expired. Request a new one.")
 
-    expires_at = user.get("otp_expires_at")
-    if expires_at and datetime.utcnow() > expires_at:
-        return jsonify({"msg": "Verification code expired. Please request a new one."}), 400
-
-    users.update_one(
+    db.users.update_one(
         {"email": email},
-        {
-            "$set": {
-                "name": name,
-                "password": generate_password_hash(password),
-                "verified": True,
-            },
-            "$unset": {"otp": "", "otp_expires_at": ""},
-        },
+        {"$set": {"name": body.name.strip(), "password": _hash_password(body.password), "verified": True},
+         "$unset": {"otp": "", "otp_expires_at": ""}},
     )
-    return jsonify({"msg": "Account created successfully. You can sign in now."}), 200
+    return {"msg": "Account created. You can sign in now."}
 
 
-@auth_bp.route("/register", methods=["POST"])
-def register():
-    data = _json_body()
-    name = (data.get("name") or "").strip()
-    email = _normalize_email(data.get("email", ""))
-    password = data.get("password") or ""
-
-    if not name:
-        return jsonify({"msg": "Name is required"}), 400
-    if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
-    is_valid_password, password_error = _validate_password(password)
-    if not is_valid_password:
-        return jsonify({"msg": password_error}), 400
-
-    users = current_app.db.users
-    if users.find_one({"email": email}):
-        return jsonify({"msg": "User already exists"}), 409
-
-    otp = f"{secrets.randbelow(900000) + 100000}"
-    users.insert_one(
-        {
-            "name": name,
-            "email": email,
-            "password": generate_password_hash(password),
-            "role": "admin",
-            "otp": otp,
-            "otp_expires_at": datetime.utcnow() + timedelta(minutes=10),
-            "verified": False,
-            "is_active": True,
-            "workspace_owner": email,
-            "created_at": datetime.utcnow(),
-        }
-    )
-
-    try:
-        msg = Message("Verify your account", recipients=[email])
-        msg.body = f"Your OTP is: {otp}. It expires in 10 minutes."
-        _send_email_async(current_app._get_current_object(), msg)
-    except Exception:
-        return jsonify({"msg": "User created, but failed to send OTP."}), 502
-
-    return jsonify({"msg": "OTP sent"}), 201
-
-
-@auth_bp.route("/login", methods=["POST"])
-def login():
-    data = _json_body()
-    email = _normalize_email(data.get("email", ""))
-    password = data.get("password") or ""
-    if not email or not password:
-        return jsonify({"msg": "Email and password are required"}), 400
-
-    user = current_app.db.users.find_one({"email": email})
-    if not user or not check_password_hash(user.get("password", ""), password):
-        return jsonify({"msg": "Invalid credentials"}), 401
-
+@router.post("/login")
+def login(body: LoginIn):
+    email = body.email.strip().lower()
+    db = get_db()
+    user = db.users.find_one({"email": email})
+    if not user or not _verify_password(body.password, user.get("password", "")):
+        raise HTTPException(401, "Invalid credentials")
     if not user.get("is_active", True):
-        return jsonify({"msg": "Your account has been deactivated. Contact admin."}), 403
+        raise HTTPException(403, "Account deactivated. Contact your admin.")
     if not user.get("verified"):
-        return jsonify({"msg": "Email not verified"}), 403
+        raise HTTPException(403, "Email not verified")
 
-    workspace_owner = (
-        user.get("workspace_owner")
-        or user.get("invited_by")
-        or user.get("email")
-    )
+    workspace_owner = user.get("workspace_owner") or user.get("invited_by") or email
     token = create_access_token(
-        identity=user["email"],
-        additional_claims={
-            "role": user.get("role", "admin"),
-            "name": user.get("name", "User"),
-            "workspace_owner": workspace_owner,
-        },
+        email,
+        {"role": user.get("role", "user"), "name": user.get("name", ""), "workspace_owner": workspace_owner},
     )
-    return (
-        jsonify(
-            {
-                "access_token": token,
-                "role": user.get("role", "admin"),
-                "name": user.get("name", "User"),
-            }
-        ),
-        200,
-    )
+    return {"access_token": token, "role": user.get("role"), "name": user.get("name")}
 
 
-@auth_bp.route("/forgot-password", methods=["POST"])
-def forgot_password():
-    data = _json_body()
-    email = _normalize_email(data.get("email", ""))
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordIn):
+    email = body.email.strip().lower()
+    db = get_db()
+    user = db.users.find_one({"email": email})
+    if not user or not user.get("verified"):
+        return {"msg": "If a verified account exists, a reset code has been sent."}
+    if not user.get("is_active", True):
+        raise HTTPException(403, "Account is deactivated. Please contact your admin.")
 
-    if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
-
-    users = current_app.db.users
-    user = users.find_one({"email": email})
-    if not user:
-        return jsonify({"msg": "If an account exists, a reset code has been sent."}), 200
-
-    reset_code = _generate_numeric_code()
-    users.update_one(
+    code = _gen_otp()
+    db.users.update_one(
         {"email": email},
-        {
-            "$set": {
-                "reset_code": reset_code,
-                "reset_code_expires_at": datetime.utcnow() + timedelta(minutes=10),
-            }
-        },
+        {"$set": {"reset_code": code, "reset_code_expires_at": datetime.now(timezone.utc) + timedelta(minutes=10)}},
     )
-
-    try:
-        msg = Message("Reset your SafeUp password", recipients=[email])
-        msg.body = (
-            f"Hello {user.get('name', 'there')}, your password reset code is {reset_code}. "
-            "It expires in 10 minutes."
-        )
-        _send_email_async(current_app._get_current_object(), msg)
-    except Exception:
-        return jsonify({"msg": "Unable to send reset email right now. Please try again."}), 502
-
-    return jsonify({"msg": "If an account exists, a reset code has been sent."}), 200
+    _send_email_bg(email, "Reset your password",
+                   f"Hello {user.get('name', '')}, your reset code is {code}. Expires in 10 minutes.")
+    return {"msg": "If an account exists, a reset code has been sent."}
 
 
-@auth_bp.route("/reset-password", methods=["POST"])
-def reset_password():
-    data = _json_body()
-    email = _normalize_email(data.get("email", ""))
-    reset_code = (data.get("reset_code") or "").strip()
-    password = data.get("password") or ""
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordIn):
+    email = body.email.strip().lower()
+    if len(body.reset_code) != 6 or not body.reset_code.isdigit():
+        raise HTTPException(400, "Reset code must be 6 digits")
+    ok, err = _validate_password(body.password)
+    if not ok:
+        raise HTTPException(400, err)
 
-    if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
-    if len(reset_code) != 6 or not reset_code.isdigit():
-        return jsonify({"msg": "Reset code must be a 6-digit code"}), 400
-
-    is_valid_password, password_error = _validate_password(password)
-    if not is_valid_password:
-        return jsonify({"msg": password_error}), 400
-
-    users = current_app.db.users
-    user = users.find_one({"email": email, "reset_code": reset_code})
+    db = get_db()
+    user = db.users.find_one({"email": email, "reset_code": body.reset_code})
     if not user:
-        return jsonify({"msg": "Invalid email or reset code"}), 400
+        raise HTTPException(400, "Invalid email or reset code")
+    if datetime.now(timezone.utc) > user["reset_code_expires_at"].replace(tzinfo=timezone.utc):
+        raise HTTPException(400, "Reset code expired")
 
-    expires_at = user.get("reset_code_expires_at")
-    if expires_at and datetime.utcnow() > expires_at:
-        return jsonify({"msg": "Reset code expired. Please request a new one."}), 400
-
-    users.update_one(
+    db.users.update_one(
         {"email": email},
-        {
-            "$set": {"password": generate_password_hash(password)},
-            "$unset": {"reset_code": "", "reset_code_expires_at": ""},
-        },
+        {"$set": {"password": _hash_password(body.password)}, "$unset": {"reset_code": "", "reset_code_expires_at": ""}},
     )
-    return jsonify({"msg": "Password updated successfully. You can sign in now."}), 200
+    return {"msg": "Password updated. You can sign in now."}
 
 
-@auth_bp.route("/users", methods=["GET"])
-@jwt_required()
-def get_all_users():
-    claims = get_jwt()
-    if claims.get("role") != "admin":
-        return jsonify({"msg": "Admin access required"}), 403
-
-    admin_email = get_jwt_identity()
-    admin_workspace = claims.get("workspace_owner") or admin_email
-    users_collection = current_app.db.users
-    query = _admin_scope_filter(admin_workspace)
-    all_users = list(
-        users_collection.find(
-            query,
-            {
-                "password": 0,
-                "otp": 0,
-                "otp_expires_at": 0,
-                "invite_code": 0,
-                "reset_code": 0,
-                "reset_code_expires_at": 0,
-            },
-        )
+@router.get("/me")
+def me(user: dict = Depends(get_current_user)):
+    db = get_db()
+    doc = db.users.find_one(
+        {"email": user["sub"]},
+        {"password": 0, "otp": 0, "otp_expires_at": 0, "reset_code": 0, "reset_code_expires_at": 0},
     )
-    for user in all_users:
-        user["_id"] = str(user["_id"])
-    return jsonify(all_users), 200
+    if not doc:
+        raise HTTPException(404, "User not found")
+    doc["_id"] = str(doc["_id"])
+    return doc
 
 
-@auth_bp.route("/invite-member", methods=["POST"])
-@jwt_required()
-def invite_member():
-    claims = get_jwt()
-    if claims.get("role") != "admin":
-        return jsonify({"msg": "Admin access required"}), 403
+@router.get("/users")
+def get_users(admin: dict = Depends(require_admin)):
+    db = get_db()
+    workspace = admin.get("workspace_owner") or admin["sub"]
+    docs = list(db.users.find(
+        {"$or": [{"email": workspace}, {"workspace_owner": workspace}]},
+        {"password": 0, "otp": 0, "otp_expires_at": 0, "invite_code": 0, "reset_code": 0},
+    ))
+    for d in docs:
+        d["_id"] = str(d["_id"])
+    return docs
 
-    data = _json_body()
-    name = (data.get("name") or "").strip()
-    email = _normalize_email(data.get("email", ""))
-    admin_email = get_jwt_identity()
-    admin_workspace = claims.get("workspace_owner") or admin_email
 
-    if not name:
-        return jsonify({"msg": "Name is required"}), 400
+@router.post("/invite-member")
+def invite_member(body: InviteMemberIn, admin: dict = Depends(require_admin)):
+    email = body.email.strip().lower()
+    admin_email = admin["sub"]
+    workspace = admin.get("workspace_owner") or admin_email
+
     if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
+        raise HTTPException(400, "Invalid email")
     if email == admin_email:
-        return jsonify({"msg": "You cannot invite yourself"}), 400
+        raise HTTPException(400, "You cannot invite yourself")
 
-    users = current_app.db.users
-    if users.find_one({"email": email}):
-        return jsonify({"msg": "User already exists"}), 409
+    db = get_db()
+    if db.users.find_one({"email": email}):
+        raise HTTPException(409, "User already exists")
 
-    invite_code = _generate_short_code()
-    users.insert_one(
-        {
-            "name": name,
-            "email": email,
-            "role": "user",
-            "verified": False,
-            "is_active": True,
-            "invite_code": invite_code,
-            "invited_by": admin_email,
-            "workspace_owner": admin_workspace,
-            "created_at": datetime.utcnow(),
-        }
+    code = _gen_invite_code()
+    db.users.insert_one({
+        "name": body.name.strip(), "email": email, "role": "user",
+        "verified": False, "is_active": True, "invite_code": code,
+        "invited_by": admin_email, "workspace_owner": workspace,
+        "created_at": datetime.now(timezone.utc),
+    })
+    _send_email_bg(
+        email, "You've been invited",
+        f"Hello {body.name}, your invite code is: {code}\n\n"
+        f"Join at: http://localhost:5173/?invite={code}&email={email}",
     )
-
-    # Emit an SSE event (if active) for new invites / workspace member addition
-    try:
-        from routes.pdf import _emit_sse_event
-
-        _emit_sse_event(admin_workspace, {
-            "type": "member",
-            "title": f"{name} was invited",
-            "actor": admin_email,
-            "timestamp": datetime.utcnow().isoformat(),
-            "meta": {"email": email, "role": "user"},
-        })
-    except Exception:
-        # ignore event emission errors; core feature stays functional
-        pass
-
-    try:
-        msg = Message("Your invitation code", recipients=[email])
-        msg.body = (
-            f"Hello {name}, you have been invited to a SafeUp workspace.\n\n"
-            f"Your SafeUp invite code is: {invite_code}\n\n"
-            f"Click here to join and activate your account: "
-            f"https://pdf-streaming.vercel.app/?invite={invite_code}&email={email}"
-        )
-        _send_email_async(current_app._get_current_object(), msg)
-    except Exception:
-        return jsonify({"msg": "Member added, but email failed.", "code": invite_code}), 201
-
-    return jsonify({"msg": "Invitation sent successfully!", "code": invite_code}), 201
+    return {"msg": "Invitation sent!", "code": code}
 
 
-@auth_bp.route("/verify-invite", methods=["POST"])
-def verify_invite():
-    data = _json_body()
-    email = _normalize_email(data.get("email", ""))
-    invite_code = (data.get("invite_code") or "").strip().upper()
-    password = data.get("password") or ""
+@router.post("/verify-invite")
+def verify_invite(body: VerifyInviteIn):
+    email = body.email.strip().lower()
+    code = body.invite_code.strip().upper()
+    ok, err = _validate_password(body.password)
+    if not ok:
+        raise HTTPException(400, err)
 
-    if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
-    if len(invite_code) != 6:
-        return jsonify({"msg": "Invite code must be 6 characters"}), 400
-    is_valid_password, password_error = _validate_password(password)
-    if not is_valid_password:
-        return jsonify({"msg": password_error}), 400
-
-    users = current_app.db.users
-    user = users.find_one({"email": email, "invite_code": invite_code, "role": "user"})
+    db = get_db()
+    user = db.users.find_one({"email": email, "invite_code": code, "role": "user"})
     if not user:
-        return jsonify({"msg": "Invalid email or invite code"}), 400
+        raise HTTPException(400, "Invalid email or invite code")
 
-    users.update_one(
+    db.users.update_one(
         {"email": email},
-        {
-            "$set": {"password": generate_password_hash(password), "verified": True},
-            "$unset": {"invite_code": ""},
-        },
+        {"$set": {"password": _hash_password(body.password), "verified": True}, "$unset": {"invite_code": ""}},
     )
-
-    try:
-        from routes.pdf import _emit_sse_event
-
-        owner = user.get("workspace_owner") or user.get("invited_by") or email
-        _emit_sse_event(owner, {
-            "type": "member",
-            "title": f"{user.get('name', email)} joined workspace",
-            "actor": email,
-            "timestamp": datetime.utcnow().isoformat(),
-            "meta": {"email": email, "role": "user"},
-        })
-    except Exception:
-        pass
-
-    return jsonify({"msg": "Account activated successfully"}), 200
+    return {"msg": "Account activated. You can sign in now."}
 
 
-@auth_bp.route("/users/<user_id>/status", methods=["POST"])
-@jwt_required()
-def toggle_user_status(user_id):
-    claims = get_jwt()
-    if claims.get("role") != "admin":
-        return jsonify({"msg": "Admin access required"}), 403
-
+@router.post("/users/{user_id}/status")
+def toggle_user_status(user_id: str, admin: dict = Depends(require_admin)):
     if not ObjectId.is_valid(user_id):
-        return jsonify({"msg": "Invalid user id"}), 400
-
-    admin_email = get_jwt_identity()
-    admin_workspace = claims.get("workspace_owner") or admin_email
-    users_collection = current_app.db.users
-    user = users_collection.find_one({"_id": ObjectId(user_id), "workspace_owner": admin_workspace})
+        raise HTTPException(400, "Invalid user id")
+    db = get_db()
+    workspace = admin.get("workspace_owner") or admin["sub"]
+    user = db.users.find_one({"_id": ObjectId(user_id), "workspace_owner": workspace})
     if not user:
-        return jsonify({"msg": "User not found in your workspace"}), 404
-
+        raise HTTPException(404, "User not found in your workspace")
     new_status = not user.get("is_active", True)
-    users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
-    action = "activated" if new_status else "deactivated"
-    return jsonify({"msg": f"User {action} successfully"}), 200
-
-
-@auth_bp.route("/verify-otp", methods=["POST"])
-def verify_otp():
-    data = _json_body()
-    email = _normalize_email(data.get("email", ""))
-    otp = (data.get("otp") or "").strip()
-
-    if not _validate_email(email):
-        return jsonify({"msg": "Invalid email address"}), 400
-    if len(otp) != 6 or not otp.isdigit():
-        return jsonify({"msg": "OTP must be a 6-digit code"}), 400
-
-    users = current_app.db.users
-    user = users.find_one({"email": email, "otp": otp})
-    if not user:
-        return jsonify({"msg": "Invalid OTP"}), 400
-
-    expires_at = user.get("otp_expires_at")
-    if expires_at and datetime.utcnow() > expires_at:
-        return jsonify({"msg": "OTP expired. Please register again."}), 400
-
-    users.update_one(
-        {"email": email},
-        {"$set": {"verified": True}, "$unset": {"otp": "", "otp_expires_at": ""}},
-    )
-    return jsonify({"msg": "Verified"}), 200
-
-
-@auth_bp.route("/me", methods=["GET"])
-@jwt_required()
-def get_me():
-    email = get_jwt_identity()
-    user = current_app.db.users.find_one(
-        {
-            "email": email
-        },
-        {
-            "password": 0,
-            "otp": 0,
-            "otp_expires_at": 0,
-            "reset_code": 0,
-            "reset_code_expires_at": 0,
-        },
-    )
-    if not user:
-        return jsonify({"msg": "User not found"}), 404
-    user["_id"] = str(user["_id"])
-    return jsonify(user), 200
+    db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
+    return {"msg": f"User {'activated' if new_status else 'deactivated'}"}
