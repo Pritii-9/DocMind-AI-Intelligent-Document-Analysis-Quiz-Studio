@@ -98,3 +98,19 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius-sm);
 }
+
+/* AI answers */
+.ai-message-markdown > :first-child { margin-top: 0; }
+.ai-message-markdown > :last-child { margin-bottom: 0; }
+.ai-message-markdown p { margin: 0.45rem 0; }
+.ai-message-markdown h1,
+.ai-message-markdown h2,
+.ai-message-markdown h3 { margin: 0.8rem 0 0.35rem; font-size: 1em; font-weight: 700; }
+.ai-message-markdown ul,
+.ai-message-markdown ol { margin: 0.45rem 0; padding-left: 1.25rem; }
+.ai-message-markdown li { margin: 0.2rem 0; }
+.ai-message-markdown blockquote { margin: 0.6rem 0; padding-left: 0.75rem; border-left: 3px solid var(--accent); opacity: 0.85; }
+.ai-message-markdown code { padding: 0.12rem 0.3rem; border-radius: 4px; background: rgba(127,127,127,0.14); font-size: 0.9em; }
+.ai-message-markdown pre { max-width: 100%; overflow-x: auto; margin: 0.6rem 0; padding: 0.7rem; border-radius: 8px; background: rgba(15,23,42,0.08); }
+.ai-message-markdown pre code { padding: 0; background: transparent; }
+.ai-message-markdown a { color: var(--accent); text-decoration: underline; }

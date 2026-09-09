@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Send, FileText, Sparkles } from "lucide-react";
+import { AxiosError } from "axios";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import api from "../api/client";
 import CustomSelect from "./CustomSelect";
 
@@ -27,6 +30,13 @@ export default function AiChatView() {
 
   useEffect(() => {
     api.get("/pdf/library").then(({ data }) => setDocs(data)).catch(() => {});
+    api.get("/ai/history").then(({ data }) => {
+      const history: Message[] = data.flatMap((item: { message: string; answer: string }) => [
+        { role: "user", content: item.message },
+        { role: "ai", content: item.answer },
+      ]);
+      setMessages(history);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -41,13 +51,15 @@ export default function AiChatView() {
     setLoading(true);
 
     try {
-      const { data } = await api.post("/ai/query", {
-        question: q,
-        document_id: selectedDoc?.id || null,
+      const { data } = await api.post("/ai/chat", {
+        message: q,
+        doc_id: selectedDoc?.id || null,
       });
       setMessages(prev => [...prev, { role: "ai", content: data.answer || "No response generated." }]);
-    } catch (e: any) {
-      const msg = e.response?.data?.detail || "Could not generate answer. Please try again.";
+    } catch (e: unknown) {
+      const msg = e instanceof AxiosError && typeof e.response?.data?.detail === "string"
+        ? e.response.data.detail
+        : "Could not generate answer. Please try again.";
       setMessages(prev => [...prev, { role: "ai", content: `Error: ${msg}` }]);
     } finally {
       setLoading(false);
@@ -142,7 +154,13 @@ export default function AiChatView() {
                 border: m.role === "ai" ? "1px solid #e2e8f0" : "none",
                 whiteSpace: "pre-wrap",
               }}>
-                {m.content}
+                {m.role === "ai" ? (
+                  <div className="ai-message-markdown">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  m.content
+                )}
               </div>
             </div>
           ))

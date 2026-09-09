@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type ChangeEvent, type KeyboardEvent } from "react";
 import { Send, Loader2, X, Bot, Sparkles, RotateCcw, Copy, Check, AlertTriangle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { aiQuery, type AIQueryRequest, API_BASE_URL } from "../api/axios";
 
 interface Message {
@@ -115,7 +117,7 @@ export default function ChatAI({ docKey, title, className = "" }: ChatAIProps) {
           )
         );
       } else {
-        const token = localStorage.getItem("access_token");
+        const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
           method: "POST",
           headers: {
@@ -313,7 +315,9 @@ export default function ChatAI({ docKey, title, className = "" }: ChatAIProps) {
                 ) : msg.isError ? (
                   <div className="flex items-start gap-2 bg-red-50 dark:bg-rose-500/10 border border-red-200 dark:border-rose-500/20 text-red-600 dark:text-rose-500 rounded-md p-3 text-sm">
                     <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    <div className="ai-message-markdown break-words">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                    </div>
                   </div>
                 ) : (
                   <>

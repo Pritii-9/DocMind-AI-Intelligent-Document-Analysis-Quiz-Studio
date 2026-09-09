@@ -34,7 +34,7 @@ export default function Uploader({ onUploadComplete }: UploaderProps) {
   const handleUpload = async () => {
     if (!file) return;
 
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("token");
     if (!token) {
       setError("No active session found. Please sign in again.");
       return;

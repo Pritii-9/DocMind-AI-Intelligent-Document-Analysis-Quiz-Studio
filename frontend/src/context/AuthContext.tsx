@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect } from "react";
 
 interface AuthUser {
   name: string;
@@ -23,8 +23,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return raw ? JSON.parse(raw) : null;
   });
 
+  useEffect(() => {
+    if (!token) return;
+
+    const workspacePath = "/workspace";
+    window.history.replaceState({ appShell: true }, "", workspacePath);
+    window.history.pushState({ appShell: true }, "", workspacePath);
+
+    const keepWorkspaceOpen = () => {
+      window.history.pushState({ appShell: true }, "", workspacePath);
+    };
+
+    window.addEventListener("popstate", keepWorkspaceOpen);
+    return () => window.removeEventListener("popstate", keepWorkspaceOpen);
+  }, [token]);
+
   const login = (t: string, name: string, role: string) => {
-    // Decode workspace_owner from JWT payload
     const payload = JSON.parse(atob(t.split(".")[1]));
     const u: AuthUser = { name, role, workspace_owner: payload.workspace_owner || payload.sub };
     setToken(t);
@@ -34,10 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    localStorage.clear();
+    sessionStorage.clear();
     setToken(null);
     setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    window.location.replace("/");
   };
 
   const value = useMemo(

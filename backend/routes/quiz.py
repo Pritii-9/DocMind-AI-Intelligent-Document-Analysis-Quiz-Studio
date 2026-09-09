@@ -43,14 +43,23 @@ Return this exact JSON structure:
 
 PDF TEXT:
 {text}
+
+REQUESTED FOCUS:
+Topic: {topic}
+Purpose: {purpose}
 """
 
 
-def _generate_mcqs(text: str, count: int = 10) -> dict:
+def _generate_mcqs(text: str, count: int = 10, topic: str = "", purpose: str = "") -> dict:
     """Call Groq to generate MCQs from text. Returns parsed dict."""
     # Use first 6000 chars to stay within context limits
     excerpt = text[:6000].strip()
-    prompt = QUIZ_PROMPT.format(n=count, text=excerpt)
+    prompt = QUIZ_PROMPT.format(
+        n=count,
+        text=excerpt,
+        topic=topic or "Infer the most useful topic from the document",
+        purpose=purpose or "General understanding and review",
+    )
 
     raw = _chat(
         [
@@ -76,11 +85,19 @@ def _generate_mcqs(text: str, count: int = 10) -> dict:
 class GenerateQuizIn(BaseModel):
     doc_id: str
     count: int = 10  # number of MCQs
+    topic: str | None = None
+    purpose: str | None = None
 
 
 class SaveNoteIn(BaseModel):
     question_id: str
     note: str
+
+
+class ScoreIn(BaseModel):
+    score: int
+    total: int
+    pct: int
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -110,7 +127,12 @@ def generate_quiz(body: GenerateQuizIn, user: dict = Depends(get_current_user)):
 
     # Generate MCQs via Groq
     try:
-        result = _generate_mcqs(text, count=body.count)
+        result = _generate_mcqs(
+            text,
+            count=body.count,
+            topic=(body.topic or "").strip(),
+            purpose=(body.purpose or "").strip(),
+        )
     except json.JSONDecodeError as e:
         raise HTTPException(500, f"LLM returned invalid JSON: {e}")
     except Exception as e:
@@ -149,17 +171,36 @@ def generate_quiz(body: GenerateQuizIn, user: dict = Depends(get_current_user)):
 def list_quizzes(user: dict = Depends(get_current_user)):
     db = get_db()
     owner = get_ws(user)
-    docs = list(
-        db.quizzes.find({"workspace_owner": owner}, {"questions": 0})
-        .sort("created_at", -1)
-    )
+    docs = list(db.quizzes.find({"workspace_owner": owner}).sort("created_at", -1))
     for d in docs:
         d["_id"] = str(d["_id"])
         d["document_id"] = str(d.get("document_id", ""))
-        d["question_count"] = d.pop("question_count", 0)
+        d["question_count"] = len(d.get("questions", []))
         if d.get("created_at"):
             d["created_at"] = d["created_at"].isoformat()
     return docs
+
+
+@router.post("/{quiz_id}/score")
+def save_score(quiz_id: str, body: ScoreIn, user: dict = Depends(get_current_user)):
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(400, "Invalid quiz id")
+    if body.total <= 0 or body.score < 0 or body.score > body.total:
+        raise HTTPException(400, "Invalid score")
+
+    attempt = {
+        "score": body.score,
+        "total": body.total,
+        "pct": body.pct,
+        "taken_at": datetime.now(timezone.utc),
+    }
+    result = get_db().quizzes.update_one(
+        {"_id": ObjectId(quiz_id), "workspace_owner": get_ws(user)},
+        {"$set": {"last_score": attempt}, "$push": {"attempts": attempt}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(404, "Quiz not found")
+    return {"msg": "Score saved", **attempt}
 
 
 @router.get("/{quiz_id}")

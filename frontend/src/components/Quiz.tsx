@@ -24,6 +24,35 @@ interface QuizItem {
 
 interface Doc { id: string; filename: string; }
 
+function normalizeQuiz(raw: Record<string, any>): QuizItem {
+  return {
+    ...raw,
+    id: raw.id || raw._id,
+    doc_filename: raw.doc_filename || raw.document_name || "Untitled document",
+    document_id: raw.document_id || "",
+    questions: raw.questions || [],
+  } as QuizItem;
+}
+
+function getApiErrorMessage(error: unknown): string {
+  const response = (error as { response?: { data?: { detail?: unknown } } }).response;
+  const detail = response?.data?.detail;
+
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map(item => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "msg" in item) {
+          return String(item.msg);
+        }
+        return "Invalid request";
+      })
+      .join(". ");
+  }
+  return "Failed to generate quiz. Please try again.";
+}
+
 const ACCENT        = "oklch(45% 0.033 256.848)";
 const ACCENT_HOVER  = "oklch(52% 0.04 256.848)";
 const ACCENT_LIGHT  = "oklch(96% 0.015 256.848)";
@@ -43,6 +72,8 @@ export default function QuizView() {
   const [activeQuiz, setActiveQuiz]   = useState<QuizItem | null>(null);
   const [selDoc, setSelDoc]           = useState("");
   const [count, setCount]             = useState(10);
+  const [topic, setTopic]             = useState("");
+  const [purpose, setPurpose]         = useState("");
   const [generating, setGen]          = useState(false);
   const [genError, setGenErr]         = useState("");
   const [answers, setAnswers]         = useState<Record<string, "A" | "B" | "C" | "D">>({});
@@ -54,7 +85,7 @@ export default function QuizView() {
       api.get("/quiz/list").then(r => r.data),
       api.get("/pdf/library").then(r => r.data),
     ]).then(([qList, docList]) => {
-      setQuizzes(qList);
+      setQuizzes(qList.map((quiz: Record<string, any>) => normalizeQuiz(quiz)));
       setDocs(docList.filter((d: any) => (d.ai_index_status || "ready").toLowerCase() === "ready"));
     }).catch(() => {}).finally(() => setLoading(false));
   };
@@ -65,12 +96,17 @@ export default function QuizView() {
     if (!selDoc) return;
     setGen(true); setGenErr("");
     try {
-      const { data } = await api.post("/quiz/generate", { document_id: selDoc, count });
+      const { data } = await api.post("/quiz/generate", {
+        doc_id: selDoc,
+        count,
+        topic: topic.trim() || null,
+        purpose: purpose.trim() || null,
+      });
       toast.success("Quiz generated successfully");
       await load();
-      startQuiz(data);
-    } catch (e: any) {
-      setGenErr(e.response?.data?.detail || "Failed to generate quiz. Please try again.");
+      startQuiz(normalizeQuiz(data));
+    } catch (e: unknown) {
+      setGenErr(getApiErrorMessage(e));
     } finally {
       setGen(false);
     }
@@ -219,6 +255,31 @@ export default function QuizView() {
                 options={docs.map(d => ({ value: d.id, label: d.filename, icon: FileText }))}
                 value={selDoc}
                 onChange={val => setSelDoc(val)}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: 8 }}>
+                Topic focus <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+              </label>
+              <input
+                value={topic}
+                onChange={e => setTopic(e.target.value)}
+                placeholder="e.g. database indexing and query optimization"
+                style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#0f172a", outline: "none" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: 8 }}>
+                Quiz purpose <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+              </label>
+              <textarea
+                value={purpose}
+                onChange={e => setPurpose(e.target.value)}
+                placeholder="e.g. prepare for an exam with scenario-based questions"
+                rows={3}
+                style={{ width: "100%", boxSizing: "border-box", resize: "vertical", border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#0f172a", outline: "none", fontFamily: "inherit" }}
               />
             </div>
 

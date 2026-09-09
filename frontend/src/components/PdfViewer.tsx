@@ -14,7 +14,7 @@ export default function PdfViewer({ url }: { url: string }) {
   const viewerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("token");
     let objectUrl: string | null = null;
 
     const fetchPdf = async () => {
