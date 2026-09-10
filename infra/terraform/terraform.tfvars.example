@@ -1,6 +1,6 @@
 aws_region           = "ap-south-1"
-aws_access_key       = "AKIAS625MQH5JADAANOY"
-aws_secret_key       = "XPxF3z4an0mfKJxugnpAeeiYNvajMCWrihDu4N2l"
+aws_access_key       = "YOUR_AWS_ACCESS_KEY_HERE"
+aws_secret_key       = "YOUR_AWS_SECRET_KEY_HERE"
 environment          = "production"
 bucket_name          = "docmind-pdf-storage-prod-2026"
 enable_versioning    = true
