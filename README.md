@@ -69,7 +69,7 @@ graph TD
     FastEmbed -->|384-dim Embeddings| DB
     API -->|Prompt Context| Groq[Groq AI Inference]
     Groq -->|Citations & Pre-computed MCQs| API
-    Client -->|Live API Ping & Diagnostics| Health[/health Telemetry Endpoint]
+    Client -->|Live API Ping & Diagnostics| Health["/health Telemetry Endpoint"]
 ```
 
 ---

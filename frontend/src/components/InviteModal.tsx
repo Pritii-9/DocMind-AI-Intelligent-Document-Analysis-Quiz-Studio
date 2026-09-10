@@ -1,7 +1,7 @@
 import { Mail, User, UserPlus, X } from "lucide-react";
 import { useState } from "react";
 
-import api from "../api/axios";
+import api from "../api/client";
 
 export default function InviteModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [name, setName] = useState("");
@@ -24,8 +24,8 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean; onCl
     setError(null);
 
     try {
-      const response = await api.post("/auth/invite-member", { name, email });
-      setMessage(`Invitation sent! An email was dispatched. (Demo fallback code: ${response.data.code})`);
+      await api.post("/auth/invite-member", { name, email });
+      setMessage("Invitation sent! An email invitation code has been dispatched.");
       setName("");
       setEmail("");
     } catch (err) {
