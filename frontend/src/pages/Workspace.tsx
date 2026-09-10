@@ -7,6 +7,7 @@ import Library from "../components/Library";
 import Team from "../components/Team";
 import AiChat from "../components/AiChat";
 import QuizView from "../components/Quiz";
+import SystemTelemetry from "../components/SystemTelemetry";
 import Sidebar from "../components/Sidebar";
 import type { Tab } from "../components/Sidebar";
 import SignOutModal from "../components/SignOutModal";
@@ -20,6 +21,7 @@ const TAB_TITLES: Record<Tab, string> = {
   chat: "Ask AI",
   quiz: "Quizzes",
   team: "Team",
+  system: "System Telemetry",
 };
 
 export default function Workspace() {
@@ -115,8 +117,10 @@ export default function Workspace() {
           {tab === "chat"      && <AiChat />}
           {tab === "quiz"      && <QuizView />}
           {tab === "team"      && <Team />}
+          {tab === "system"    && <SystemTelemetry />}
         </div>
       </main>
     </div>
   );
 }
+

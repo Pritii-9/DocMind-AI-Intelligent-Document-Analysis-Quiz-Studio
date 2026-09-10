@@ -1,7 +1,7 @@
-import { LayoutDashboard, FileText, Bot, BookOpen, Users, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, FileText, Bot, BookOpen, Users, LogOut, ChevronLeft, ChevronRight, Cpu } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-export type Tab = "dashboard" | "library" | "chat" | "team" | "quiz";
+export type Tab = "dashboard" | "library" | "chat" | "team" | "quiz" | "system";
 
 const ACCENT        = "oklch(45% 0.033 256.848)";
 const ACCENT_LIGHT  = "oklch(96% 0.015 256.848)";
@@ -12,6 +12,7 @@ const NAV: { id: Tab; label: string; icon: any }[] = [
   { id: "chat",      label: "Ask AI",      icon: Bot },
   { id: "quiz",      label: "Quizzes",     icon: BookOpen },
   { id: "team",      label: "Team",        icon: Users },
+  { id: "system",    label: "Telemetry",   icon: Cpu },
 ];
 
 interface SidebarProps {
