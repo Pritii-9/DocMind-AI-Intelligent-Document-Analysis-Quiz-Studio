@@ -78,25 +78,64 @@ graph TD
 
 ### Prerequisites
 - Python 3.11+ / Poetry
-- Node.js 18+ / npm
-- MongoDB Atlas Cluster
+- Node.js 20+ / npm
+- Docker & Docker Compose (for containerized deployment)
+- MongoDB Atlas Cluster (or local Docker MongoDB)
 - AWS S3 Bucket & Groq API Key
 
-### 1. Backend Setup
+---
+
+### 🐳 Option A: Docker Deployment (Recommended)
+
+Run the full multi-container stack (MongoDB + FastAPI Backend + React/Nginx Frontend) with a single command:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Pritii-9/pdf-streaming.git
+cd pdf-streaming
+
+# 2. Configure environment variables (optional)
+cp backend/.env.example backend/.env
+
+# 3. Build and launch all services with Docker Compose
+docker-compose up --build -d
+```
+
+#### Running Services:
+- **Frontend App**: [http://localhost:5173](http://localhost:5173) (or `http://localhost:80`)
+- **FastAPI OpenAPI Specs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **MongoDB Instance**: `localhost:27017`
+
+To stop and remove containers:
+```bash
+docker-compose down -v
+```
+
+---
+
+### 💻 Option B: Manual Local Setup
+
+#### 1. Backend Setup
 ```bash
 cd backend
 poetry install
 poetry run uvicorn main:app --reload --port 8000
 ```
 
-### 2. Frontend Setup
+#### 2. Frontend Setup
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### 3. Infrastructure Provisioning (Optional)
+#### 3. Run Backend Unit & Integration Tests
+```bash
+cd backend
+poetry run pytest -v
+```
+
+#### 4. Infrastructure Provisioning (Optional)
 ```bash
 cd infra/terraform
 terraform init

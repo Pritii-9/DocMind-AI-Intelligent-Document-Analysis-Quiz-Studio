@@ -1,0 +1,13 @@
+# Ignore node modules and local builds
+node_modules/
+dist/
+build/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+.pytest_cache/
+.coverage
+*.log
+.DS_Store

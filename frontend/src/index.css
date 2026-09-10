@@ -1,54 +1,11 @@
 @import "tailwindcss";
 
+/* ── Brand color tokens (replaces oklch) ── */
 :root {
-  --app-bg:       #09090b;
-  --surface:      #111113;
-  --surface-2:    #18181b;
-  --surface-3:    #1e1e23;
-  --border:       #27272a;
-  --border-soft:  rgba(255,255,255,0.06);
-  --text:         #e4e4e7;
-  --text-soft:    #71717a;
-  --text-muted:   #3f3f46;
-  --accent:       #7c3aed;
-  --accent-2:     #6d28d9;
-  --accent-glow:  rgba(124,58,237,0.12);
-  --accent-border:rgba(124,58,237,0.3);
-  --green:        #10b981;
-  --green-glow:   rgba(16,185,129,0.1);
-  --red:          #f87171;
-  --amber:        #f59e0b;
-  --sky:          #38bdf8;
-  --radius-sm:    8px;
-  --radius:       12px;
-  --radius-lg:    16px;
-  --radius-xl:    20px;
-  --shadow-card:  0 0 0 1px rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.5);
-}
-
-*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { scroll-behavior: smooth; }
-
-body {
-  font-family: "Inter", system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  background: var(--app-bg);
-  color: var(--text);
-}
-
-/* ── Scrollbars ── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
-
-/* ── Autofill fix ── */
-input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 999px #18181b inset !important;
-  -webkit-text-fill-color: #fff !important;
-  caret-color: #fff;
-  transition: background-color 99999s;
+  --brand:        #3d4f6e;
+  --brand-hover:  #4a5f83;
+  --brand-light:  #eef2f8;
+  --brand-border: #c5d2e8;
 }
 
 /* ── Animations ── */
@@ -56,12 +13,11 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: none; }
 }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin    { to   { transform: rotate(360deg); } }
 @keyframes pulseDot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.3; transform:scale(0.7); } }
 @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
 @keyframes slideInLeft { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:none; } }
-@keyframes glow { 0%,100% { box-shadow:0 0 0 0 rgba(124,58,237,0); } 50% { box-shadow:0 0 20px 4px rgba(124,58,237,0.2); } }
 
 .animate-in  { animation: fadeSlideUp 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
 .fade-in     { animation: fadeIn 0.2s ease forwards; }
@@ -69,59 +25,44 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 .spin        { animation: spin 0.75s linear infinite; }
 .pulse-dot   { animation: pulseDot 1.4s ease-in-out infinite; }
 
-/* ── Gradient text ── */
-.gradient-text {
-  background: linear-gradient(135deg, #c4b5fd 0%, #7c3aed 50%, #818cf8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* ── Scrollbars ── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Autofill fix for light theme ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 999px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a;
+  transition: background-color 99999s;
 }
 
-/* ── Glass card ── */
-.glass {
-  background: rgba(255,255,255,0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-
-/* ── Glow ring ── */
-.glow-ring { animation: glow 2s ease-in-out infinite; }
-
-/* ── Mono ── */
-.mono { font-family: "JetBrains Mono", "Fira Code", monospace; }
-
-/* ── Shimmer skeleton ── */
-.skeleton {
-  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: var(--radius-sm);
-}
-
-.quiz-shell { width: 100%; }
-.quiz-card-grid > div { min-height: 148px; }
-
-@media (max-width: 700px) {
-  .quiz-shell { padding: 16px !important; }
-  .quiz-shell h1 { font-size: 20px !important; }
-  .quiz-card-grid { grid-template-columns: 1fr !important; }
-  .quiz-form-panel,
-  .quiz-flow-panel { max-width: none !important; }
-}
-
-/* AI answers */
+/* ── AI chat markdown ── */
 .ai-message-markdown > :first-child { margin-top: 0; }
-.ai-message-markdown > :last-child { margin-bottom: 0; }
-.ai-message-markdown p { margin: 0.45rem 0; }
+.ai-message-markdown > :last-child  { margin-bottom: 0; }
+.ai-message-markdown p              { margin: 0.45rem 0; }
 .ai-message-markdown h1,
 .ai-message-markdown h2,
-.ai-message-markdown h3 { margin: 0.8rem 0 0.35rem; font-size: 1em; font-weight: 700; }
+.ai-message-markdown h3             { margin: 0.8rem 0 0.35rem; font-size: 1em; font-weight: 700; }
 .ai-message-markdown ul,
-.ai-message-markdown ol { margin: 0.45rem 0; padding-left: 1.25rem; }
-.ai-message-markdown li { margin: 0.2rem 0; }
-.ai-message-markdown blockquote { margin: 0.6rem 0; padding-left: 0.75rem; border-left: 3px solid var(--accent); opacity: 0.85; }
-.ai-message-markdown code { padding: 0.12rem 0.3rem; border-radius: 4px; background: rgba(127,127,127,0.14); font-size: 0.9em; }
-.ai-message-markdown pre { max-width: 100%; overflow-x: auto; margin: 0.6rem 0; padding: 0.7rem; border-radius: 8px; background: rgba(15,23,42,0.08); }
-.ai-message-markdown pre code { padding: 0; background: transparent; }
-.ai-message-markdown a { color: var(--accent); text-decoration: underline; }
+.ai-message-markdown ol             { margin: 0.45rem 0; padding-left: 1.25rem; }
+.ai-message-markdown li             { margin: 0.2rem 0; }
+.ai-message-markdown blockquote     { margin: 0.6rem 0; padding-left: 0.75rem; border-left: 3px solid var(--brand); opacity: 0.85; }
+.ai-message-markdown code           { padding: 0.12rem 0.3rem; border-radius: 4px; background: rgba(61,79,110,0.08); font-size: 0.9em; }
+.ai-message-markdown pre            { max-width: 100%; overflow-x: auto; margin: 0.6rem 0; padding: 0.7rem; border-radius: 8px; background: #f8fafc; }
+.ai-message-markdown pre code       { padding: 0; background: transparent; }
+.ai-message-markdown a              { color: var(--brand); text-decoration: underline; }
+
+/* ── Quiz responsive ── */
+.quiz-shell { width: 100%; }
+@media (max-width: 700px) {
+  .quiz-shell        { padding: 16px !important; }
+  .quiz-shell h1     { font-size: 20px !important; }
+  .quiz-card-grid    { grid-template-columns: 1fr !important; }
+  .quiz-form-panel,
+  .quiz-flow-panel   { max-width: none !important; }
+}

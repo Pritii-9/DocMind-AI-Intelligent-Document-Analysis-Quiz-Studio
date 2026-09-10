@@ -13,34 +13,23 @@ interface Member {
   created_at?: string;
 }
 
-const ACCENT        = "oklch(45% 0.033 256.848)";
-const ACCENT_HOVER  = "oklch(52% 0.04 256.848)";
-const ACCENT_LIGHT  = "oklch(96% 0.015 256.848)";
-
-const fmtD = (s?: string) => s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Active";
-
-const card: React.CSSProperties = {
-  background: "#ffffff", borderRadius: 14,
-  boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.03)",
-  border: "1px solid #e2e8f0",
-};
+const fmtD = (s?: string) =>
+  s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 
 export default function TeamView() {
-  const { toast }                     = useToast();
-  const [members, setMembers]         = useState<Member[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [showInvite, setShowInvite]   = useState(false);
-  const [inviteName, setInviteName]   = useState("");
+  const { toast }                   = useToast();
+  const [members, setMembers]       = useState<Member[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviting, setInviting]       = useState(false);
+  const [inviting, setInviting]     = useState(false);
 
   const load = () => {
     setLoading(true);
     api.get("/auth/users")
       .then(r => setMembers(r.data))
-      .catch((err) => {
-        toast.error(err.response?.data?.detail || "Failed to load team members.");
-      })
+      .catch(err => toast.error(err.response?.data?.detail || "Failed to load team members."))
       .finally(() => setLoading(false));
   };
 
@@ -53,9 +42,7 @@ export default function TeamView() {
     try {
       await api.post("/auth/invite-member", { name: inviteName.trim(), email: inviteEmail.trim() });
       toast.success(`Invite dispatched to ${inviteEmail}`);
-      setShowInvite(false);
-      setInviteName("");
-      setInviteEmail("");
+      setShowInvite(false); setInviteName(""); setInviteEmail("");
       load();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Failed to send invitation.");
@@ -70,36 +57,32 @@ export default function TeamView() {
       toast.success(`${m.name} status updated.`);
       load();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to update member status.");
+      toast.error(err.response?.data?.detail || "Failed to update status.");
     }
   }
 
   if (loading) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "80vh", gap: 12 }}>
-      <div style={{ width: 32, height: 32, borderRadius: "50%", border: "2px solid #e2e8f0", borderTopColor: ACCENT }} className="spin" />
-      <p style={{ fontSize: 13, color: "#64748b" }}>Loading workspace team…</p>
+    <div className="flex flex-col items-center justify-center h-[80vh] gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[var(--brand)] spin" />
+      <p className="text-[13px] text-slate-500">Loading workspace team…</p>
     </div>
   );
 
   return (
-    <div className="animate-in" style={{ padding: "28px 32px", background: "#f8fafc", minHeight: "calc(100vh - 60px)", fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="animate-in p-7 bg-slate-50 min-h-[calc(100vh-60px)] font-[Inter,system-ui,sans-serif]">
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 28 }}>
+      <div className="flex items-end justify-between mb-7">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0f172a" }}>Team Management</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Manage workspace accounts, roles, and member invitations.</p>
+          <h1 className="text-[22px] font-extrabold tracking-tight text-slate-900">Team Management</h1>
+          <p className="text-[13px] text-slate-500 mt-0.5">Manage workspace accounts, roles, and member invitations.</p>
         </div>
         <button
           onClick={() => setShowInvite(true)}
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: ACCENT, color: "#fff", border: "none",
-            borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 600,
-            cursor: "pointer", boxShadow: "0 4px 14px oklch(45% 0.033 256.848 / 0.3)", transition: "all 0.15s",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = ACCENT_HOVER; e.currentTarget.style.transform = "translateY(-1px)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = ACCENT; e.currentTarget.style.transform = "none"; }}
+          className="flex items-center gap-2 text-white text-[13px] font-semibold px-4 py-2.5 rounded-xl border-none cursor-pointer transition-all duration-150 hover:-translate-y-px"
+          style={{ background: "var(--brand)", boxShadow: "0 4px 14px rgba(61,79,110,0.3)" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "var(--brand-hover)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "var(--brand)")}
         >
           <UserPlus size={15} /> Invite member
         </button>
@@ -107,34 +90,41 @@ export default function TeamView() {
 
       {/* Invite Modal */}
       {showInvite && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ ...card, width: "100%", maxWidth: 420, padding: 24, position: "relative" }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>Invite team member</h3>
-            <p style={{ fontSize: 12, color: "#64748b", marginBottom: 20 }}>An onboarding email invitation code will be sent to their address.</p>
-
-            <form onSubmit={sendInvite}>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", display: "block", marginBottom: 6 }}>Full Name</label>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-5">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-[420px] p-6">
+            <h3 className="text-base font-bold text-slate-900 mb-1">Invite team member</h3>
+            <p className="text-xs text-slate-500 mb-5">An onboarding invite code will be sent to their email address.</p>
+            <form onSubmit={sendInvite} className="flex flex-col gap-3.5">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Full Name</label>
                 <input
                   type="text" required placeholder="Aarav Mehta"
                   value={inviteName} onChange={e => setInviteName(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-[13px] text-slate-900 outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-colors"
                 />
               </div>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", display: "block", marginBottom: 6 }}>Work Email</label>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Work Email</label>
                 <input
                   type="email" required placeholder="aarav@company.com"
                   value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-[13px] text-slate-900 outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-colors"
                 />
               </div>
-
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => setShowInvite(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#475569", cursor: "pointer" }}>
+              <div className="flex gap-2.5 justify-end mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowInvite(false)}
+                  className="px-4 py-2 text-[13px] font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg cursor-pointer hover:border-slate-400 transition-colors"
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={inviting} style={{ background: ACCENT, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: inviting ? "not-allowed" : "pointer", opacity: inviting ? 0.7 : 1 }}>
+                <button
+                  type="submit"
+                  disabled={inviting}
+                  className="px-4 py-2 text-[13px] font-semibold text-white rounded-lg border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                  style={{ background: "var(--brand)" }}
+                >
                   {inviting ? "Sending…" : "Send invitation"}
                 </button>
               </div>
@@ -143,62 +133,66 @@ export default function TeamView() {
         </div>
       )}
 
-      {/* Active Members Table */}
-      <div style={card}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 120px 140px 110px", padding: "12px 20px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc", borderRadius: "14px 14px 0 0" }}>
+      {/* Members Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Table header */}
+        <div className="grid gap-4 px-5 py-3 border-b border-slate-100 bg-slate-50 rounded-t-2xl" style={{ gridTemplateColumns: "1fr 130px 110px 140px 110px" }}>
           {["Member", "Role", "Status", "Joined", "Actions"].map(h => (
-            <p key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a3b8", margin: 0 }}>{h}</p>
+            <p key={h} className="text-[10px] font-bold tracking-widest uppercase text-slate-400 m-0">{h}</p>
           ))}
         </div>
 
         {members.length === 0 ? (
-          <div style={{ padding: 40, textAlign: "center", color: "#64748b", fontSize: 13 }}>No team members found in workspace.</div>
+          <div className="py-10 text-center text-[13px] text-slate-500">No team members found in workspace.</div>
         ) : (
           members.map((m, idx) => (
-            <div key={m._id} style={{
-              display: "grid", gridTemplateColumns: "1fr 140px 120px 140px 110px",
-              alignItems: "center", padding: "14px 20px",
-              borderBottom: idx < members.length - 1 ? "1px solid #f8fafc" : "none",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: ACCENT_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: ACCENT }}>
+            <div
+              key={m._id}
+              className="grid items-center px-5 py-3.5 gap-4 hover:bg-slate-50 transition-colors"
+              style={{
+                gridTemplateColumns: "1fr 130px 110px 140px 110px",
+                borderBottom: idx < members.length - 1 ? "1px solid #f8fafc" : "none",
+              }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-[13px] font-bold"
+                  style={{ background: "var(--brand-light)", color: "var(--brand)" }}
+                >
                   {m.name?.charAt(0).toUpperCase() || "U"}
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</p>
-                  <p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>{m.email}</p>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-slate-900 truncate">{m.name}</p>
+                  <p className="text-[11px] text-slate-400">{m.email}</p>
                 </div>
               </div>
 
-              <span style={{ fontSize: 12, color: "#475569", textTransform: "capitalize", fontWeight: 500 }}>{m.role || "User"}</span>
+              <span className="text-xs text-slate-500 capitalize font-medium">{m.role || "User"}</span>
 
-              <div>
-                <span style={{
-                  fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 99,
-                  background: m.is_active ? "#dcfce7" : "#f4f4f5",
-                  color: m.is_active ? "#15803d" : "#71717a",
-                }}>
-                  {m.is_active ? "Active" : "Inactive"}
-                </span>
-              </div>
+              <span
+                className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  m.is_active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {m.is_active ? "Active" : "Inactive"}
+              </span>
 
-              <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>{fmtD(m.created_at)}</p>
+              <p className="text-xs text-slate-500">{fmtD(m.created_at)}</p>
 
-              <div>
-                <button
-                  onClick={() => toggleStatus(m)}
-                  title={m.is_active ? "Deactivate member" : "Activate member"}
-                  style={{ background: "#f1f5f9", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#475569", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                >
-                  {m.is_active ? <UserX size={13} color="#dc2626" /> : <UserCheck size={13} color="#15803d" />}
-                  {m.is_active ? "Deactivate" : "Activate"}
-                </button>
-              </div>
+              <button
+                onClick={() => toggleStatus(m)}
+                title={m.is_active ? "Deactivate member" : "Activate member"}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 bg-slate-100 border-none rounded-md cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                {m.is_active
+                  ? <UserX size={13} className="text-red-500" />
+                  : <UserCheck size={13} className="text-green-600" />}
+                {m.is_active ? "Deactivate" : "Activate"}
+              </button>
             </div>
           ))
         )}
       </div>
-
     </div>
   );
 }

@@ -1,16 +1,72 @@
-version: "3.9"
+version: "3.8"
+
 services:
+  # ── MongoDB Database Container ──────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: pdf_stream_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pdf_stream_net
+
+  # ── FastAPI Backend Service ──────────────────────────────────────────────────
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pdf_stream_backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
-    env_file:
-      - ./backend/.env
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/docmind
+      - JWT_SECRET=${JWT_SECRET:-production-docmind-jwt-secret-key-32-chars-min!}
+      - JWT_ACCESS_MINUTES=1440
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:80
+      - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-""}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-""}
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY:-""}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY:-""}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME:-""}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - GROQ_API_KEY=${GROQ_API_KEY:-""}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - pdf_stream_net
 
+  # ── React + Vite (Nginx Multi-stage) Frontend Service ────────────────────────
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000
+    container_name: pdf_stream_frontend
+    restart: unless-stopped
     ports:
       - "5173:80"
     depends_on:
       - backend
+    networks:
+      - pdf_stream_net
+
+networks:
+  pdf_stream_net:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    driver: local

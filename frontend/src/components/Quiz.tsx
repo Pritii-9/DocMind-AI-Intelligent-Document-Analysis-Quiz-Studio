@@ -54,9 +54,9 @@ function getApiErrorMessage(error: unknown): string {
   return "Failed to generate quiz. Please try again.";
 }
 
-const ACCENT        = "oklch(45% 0.033 256.848)";
-const ACCENT_HOVER  = "oklch(52% 0.04 256.848)";
-const ACCENT_LIGHT  = "oklch(96% 0.015 256.848)";
+const ACCENT        = "var(--brand)";
+const ACCENT_HOVER  = "var(--brand-hover)";
+const ACCENT_LIGHT  = "var(--brand-light)";
 const CARD_BG       = "#ffffff";
 
 const S: React.CSSProperties = {
@@ -220,7 +220,7 @@ export default function QuizView() {
                 display: "flex", alignItems: "center", gap: 8,
                 background: ACCENT, color: "#fff", border: "none",
                 borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 600,
-                cursor: "pointer", boxShadow: "0 4px 14px oklch(45% 0.033 256.848 / 0.25)", transition: "all 0.15s",
+                cursor: "pointer", boxShadow: "0 4px 14px rgba(61,79,110,0.25)", transition: "all 0.15s",
               }}
               onMouseEnter={e => { e.currentTarget.style.background = ACCENT_HOVER; e.currentTarget.style.transform = "translateY(-1px)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = ACCENT; e.currentTarget.style.transform = "none"; }}

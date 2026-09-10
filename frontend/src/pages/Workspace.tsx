@@ -13,15 +13,13 @@ import type { Tab } from "../components/Sidebar";
 import SignOutModal from "../components/SignOutModal";
 import ProfileModal from "../components/ProfileModal";
 
-const ACCENT = "oklch(45% 0.033 256.848)";
-
 const TAB_TITLES: Record<Tab, string> = {
   dashboard: "Dashboard",
-  library: "Library",
-  chat: "Ask AI",
-  quiz: "Quizzes",
-  team: "Team",
-  system: "System Telemetry",
+  library:   "Library",
+  chat:      "Ask AI",
+  quiz:      "Quizzes",
+  team:      "Team",
+  system:    "System Telemetry",
 };
 
 export default function Workspace() {
@@ -39,22 +37,15 @@ export default function Workspace() {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#f8fafc", overflow: "hidden", fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-[Inter,system-ui,sans-serif]">
 
-      {/* ── Profile Modal ── */}
-      <ProfileModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-      />
-
-      {/* ── Sign Out Modal ── */}
+      <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
       <SignOutModal
         isOpen={showSignOutModal}
         onClose={() => setShowSignOutModal(false)}
         onConfirm={confirmSignOut}
       />
 
-      {/* ── Sidebar Component ── */}
       <Sidebar
         tab={tab}
         setTab={setTab}
@@ -64,54 +55,37 @@ export default function Workspace() {
         onOpenProfile={() => setShowProfileModal(true)}
       />
 
-      {/* ── Main Workspace Content ── */}
-      <main style={{ flex: 1, overflowY: "auto", background: "#f8fafc", display: "flex", flexDirection: "column" }}>
-        {/* Header Bar */}
-        <header style={{
-          height: 60, display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 28px",
-          borderBottom: "1px solid #e2e8f0",
-          background: "rgba(255,255,255,0.85)",
-          backdropFilter: "blur(10px)",
-          position: "sticky", top: 0, zIndex: 10, flexShrink: 0,
-        }}>
+      <main className="flex-1 overflow-y-auto bg-slate-50 flex flex-col">
+        {/* Header */}
+        <header className="h-[60px] flex items-center justify-between px-7 border-b border-slate-200 bg-white/85 backdrop-blur-[10px] sticky top-0 z-10 shrink-0">
           <div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", lineHeight: 1 }}>
-              {TAB_TITLES[tab] || "Workspace"}
-            </p>
+            <p className="text-[15px] font-bold text-slate-900 leading-none">{TAB_TITLES[tab] || "Workspace"}</p>
             <p
+              className="text-[11px] text-slate-400 mt-0.5 cursor-pointer"
               onClick={() => setShowProfileModal(true)}
-              style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, cursor: "pointer" }}
-              title="View Account Details"
+              title="View Account"
             >
-              Welcome back, <span style={{ color: ACCENT, fontWeight: 600 }}>{user?.name}</span>
+              Welcome back,{" "}
+              <span className="font-semibold" style={{ color: "var(--brand)" }}>{user?.name}</span>
             </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setShowProfileModal(true)}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                background: "#ffffff", border: "1px solid #cbd5e1",
-                borderRadius: 8, padding: "5px 11px", fontSize: 11, fontWeight: 600,
-                color: "#475569", cursor: "pointer", transition: "all 0.15s",
-              }}
+              className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-slate-600 cursor-pointer hover:border-slate-400 hover:text-slate-800 transition-colors"
             >
               <User size={13} /> Account
             </button>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              background: "#f0fdf4", border: "1px solid #bbf7d0",
-              borderRadius: 99, padding: "4px 10px",
-            }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#16a34a" }} />
-              <span style={{ fontSize: 11, color: "#15803d", fontWeight: 600 }}>System active</span>
+            <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="text-[11px] text-green-700 font-semibold">System active</span>
             </div>
           </div>
         </header>
 
-        {/* Tab View Routing */}
-        <div style={{ flex: 1 }}>
+        {/* Tab content */}
+        <div className="flex-1">
           {tab === "dashboard" && <Dashboard onNavigate={setTab} />}
           {tab === "library"   && <Library />}
           {tab === "chat"      && <AiChat />}
@@ -123,4 +97,3 @@ export default function Workspace() {
     </div>
   );
 }
-

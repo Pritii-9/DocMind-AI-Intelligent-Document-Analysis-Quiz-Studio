@@ -6,38 +6,28 @@ import { useToast } from "../context/ToastContext";
 interface Doc { id: string; filename: string; size_bytes: number; uploaded_at: string | null; ai_index_status: string; }
 
 const CHUNK = 5 * 1024 * 1024;
-const ACCENT        = "oklch(45% 0.033 256.848)";
-const ACCENT_HOVER  = "oklch(52% 0.04 256.848)";
-const ACCENT_LIGHT  = "oklch(96% 0.015 256.848)";
-const ACCENT_BORDER = "oklch(85% 0.03 256.848)";
-
-const fmt = (b: number) => b < 1024 ? `${b} B` : b < 1024 ** 2 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1024 ** 2).toFixed(1)} MB`;
+const fmt  = (b: number) => b < 1024 ? `${b} B` : b < 1024**2 ? `${(b/1024).toFixed(1)} KB` : `${(b/1024**2).toFixed(1)} MB`;
 const fmtD = (s: string | null) => s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 
-const card: React.CSSProperties = {
-  background: "#ffffff",
-  borderRadius: 14,
-  boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.03)",
-  border: "1px solid #e2e8f0",
-};
+const cardCls = "bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden";
 
-const statusMap: Record<string, { icon: any; color: string; bg: string; label: string }> = {
-  ready:      { icon: CheckCircle, color: "#15803d", bg: "#dcfce7", label: "Ready" },
-  processing: { icon: Loader,      color: "#a16207", bg: "#fef9c3", label: "Processing" },
-  failed:     { icon: AlertCircle, color: "#dc2626", bg: "#fee2e2", label: "Failed" },
-  pending:    { icon: Clock,       color: "#71717a", bg: "#f4f4f5", label: "Pending" },
+const statusMap: Record<string, { icon: any; colorCls: string; bgCls: string; label: string }> = {
+  ready:      { icon: CheckCircle,  colorCls: "text-green-700",  bgCls: "bg-green-100 text-green-700",  label: "Ready"      },
+  processing: { icon: Loader,       colorCls: "text-yellow-700", bgCls: "bg-yellow-100 text-yellow-700", label: "Processing" },
+  failed:     { icon: AlertCircle,  colorCls: "text-red-600",    bgCls: "bg-red-100 text-red-600",       label: "Failed"     },
+  pending:    { icon: Clock,        colorCls: "text-slate-500",  bgCls: "bg-slate-100 text-slate-500",   label: "Pending"    },
 };
 
 export default function LibraryView() {
-  const { toast, confirm }          = useToast();
-  const [docs, setDocs]             = useState<Doc[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading]       = useState(true);
-  const [uploading, setUp]          = useState(false);
-  const [progress, setProgress]     = useState(0);
-  const [dragOver, setDrag]         = useState(false);
-  const [viewer, setViewer]         = useState<{ doc: Doc; url: string } | null>(null);
-  const [reindexing, setReindexing] = useState<string | null>(null);
+  const { toast, confirm }              = useToast();
+  const [docs, setDocs]                 = useState<Doc[]>([]);
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [loading, setLoading]           = useState(true);
+  const [uploading, setUp]              = useState(false);
+  const [progress, setProgress]         = useState(0);
+  const [dragOver, setDrag]             = useState(false);
+  const [viewer, setViewer]             = useState<{ doc: Doc; url: string } | null>(null);
+  const [reindexing, setReindexing]     = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
@@ -73,7 +63,9 @@ export default function LibraryView() {
 
   async function openViewer(doc: Doc) {
     const token = localStorage.getItem("token");
-    const res = await fetch(`${api.defaults.baseURL}/pdf/stream/${encodeURIComponent(doc.filename)}`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`${api.defaults.baseURL}/pdf/stream/${encodeURIComponent(doc.filename)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     const blob = await res.blob();
     setViewer({ doc, url: URL.createObjectURL(blob) });
   }
@@ -87,13 +79,8 @@ export default function LibraryView() {
       confirmText: "Delete PDF",
       danger: true,
       onConfirm: async () => {
-        try {
-          await api.delete(`/pdf/delete/${doc.id}`);
-          toast.success(`Deleted "${doc.filename}"`);
-          load();
-        } catch (e: any) {
-          toast.error("Failed to delete document");
-        }
+        try { await api.delete(`/pdf/delete/${doc.id}`); toast.success(`Deleted "${doc.filename}"`); load(); }
+        catch { toast.error("Failed to delete document"); }
       },
     });
   }
@@ -109,53 +96,49 @@ export default function LibraryView() {
 
   const filteredDocs = docs.filter(d => d.filename.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // ── PDF Viewer Modal ──
+  // PDF viewer modal
   if (viewer) return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.8)", zIndex: 100, display: "flex", flexDirection: "column" }}>
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "12px 24px", background: "#fff", borderBottom: "1px solid #e2e8f0", flexShrink: 0,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: ACCENT_LIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <FileText size={16} color={ACCENT} />
+    <div className="fixed inset-0 bg-slate-900/80 z-50 flex flex-col">
+      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--brand-light)" }}>
+            <FileText size={16} style={{ color: "var(--brand)" }} />
           </div>
           <div>
-            <p style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", margin: 0 }}>{viewer.doc.filename}</p>
-            <p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>{fmt(viewer.doc.size_bytes)} · PDF Preview</p>
+            <p className="font-bold text-[13px] text-slate-900">{viewer.doc.filename}</p>
+            <p className="text-[11px] text-slate-500">{fmt(viewer.doc.size_bytes)} · PDF Preview</p>
           </div>
         </div>
-        <button onClick={closeViewer} style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 14px", cursor: "pointer", color: "#0f172a", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+        <button
+          onClick={closeViewer}
+          className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-3.5 py-1.5 cursor-pointer text-slate-800 text-xs font-semibold hover:bg-slate-200 transition-colors"
+        >
           <X size={14} /> Close
         </button>
       </div>
-      <iframe src={viewer.url} style={{ flex: 1, border: "none", width: "100%", height: "100%" }} title="PDF Preview" />
+      <iframe src={viewer.url} className="flex-1 border-0 w-full h-full" title="PDF Preview" />
     </div>
   );
 
   return (
-    <div className="animate-in" style={{ padding: "28px 32px", background: "#f8fafc", minHeight: "calc(100vh - 60px)", fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="animate-in p-7 bg-slate-50 min-h-[calc(100vh-60px)] font-[Inter,system-ui,sans-serif]">
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 28 }}>
+      <div className="flex items-end justify-between mb-7">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0f172a" }}>Library</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Upload, manage, and search your PDF documents.</p>
+          <h1 className="text-[22px] font-extrabold tracking-tight text-slate-900">Library</h1>
+          <p className="text-[13px] text-slate-500 mt-0.5">Upload, manage, and search your PDF documents.</p>
         </div>
         <button
           onClick={() => fileRef.current?.click()}
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: ACCENT, color: "#fff", border: "none",
-            borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 600,
-            cursor: "pointer", boxShadow: "0 4px 14px oklch(45% 0.033 256.848 / 0.3)", transition: "all 0.15s",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = ACCENT_HOVER; e.currentTarget.style.transform = "translateY(-1px)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = ACCENT; e.currentTarget.style.transform = "none"; }}
+          className="flex items-center gap-2 text-white text-[13px] font-semibold px-4 py-2.5 rounded-xl border-none cursor-pointer transition-all duration-150 hover:-translate-y-px"
+          style={{ background: "var(--brand)", boxShadow: "0 4px 14px rgba(61,79,110,0.3)" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "var(--brand-hover)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "var(--brand)")}
         >
           <Upload size={14} /> Upload PDF
         </button>
-        <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+        <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); }} />
       </div>
 
       {/* Drag & drop zone */}
@@ -164,88 +147,79 @@ export default function LibraryView() {
         onDragLeave={() => setDrag(false)}
         onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) upload(f); }}
         onClick={() => !uploading && fileRef.current?.click()}
-        style={{
-          ...card,
-          border: `2px dashed ${dragOver ? ACCENT : "#cbd5e1"}`,
-          background: dragOver ? ACCENT_LIGHT : "#ffffff",
-          padding: "24px 32px", textAlign: "center", cursor: "pointer",
-          marginBottom: 24, transition: "all 0.15s",
-        }}
+        className={[
+          "rounded-2xl border-2 border-dashed px-8 py-6 text-center cursor-pointer mb-6 transition-all duration-150",
+          dragOver
+            ? "border-[var(--brand)] bg-[var(--brand-light)]"
+            : "border-slate-300 bg-white hover:border-[var(--brand)] hover:bg-[var(--brand-light)]",
+        ].join(" ")}
       >
         {uploading ? (
           <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 10 }}>
-              <Loader size={18} color={ACCENT} className="spin" />
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Uploading PDF… {progress}%</span>
+            <div className="flex items-center justify-center gap-2.5 mb-2.5">
+              <Loader size={18} style={{ color: "var(--brand)" }} className="spin" />
+              <span className="text-sm font-bold text-slate-900">Uploading PDF… {progress}%</span>
             </div>
-            <div style={{ height: 6, width: 240, background: "#e2e8f0", borderRadius: 99, margin: "0 auto", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${progress}%`, background: ACCENT, borderRadius: 99, transition: "width 0.2s" }} />
+            <div className="h-1.5 w-60 bg-slate-200 rounded-full mx-auto overflow-hidden">
+              <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${progress}%`, background: "var(--brand)" }} />
             </div>
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
-            <span style={{ display: "inline-flex", width: 42, height: 42, borderRadius: 10, border: `1px solid ${ACCENT_BORDER}`, background: ACCENT_LIGHT, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <CloudUpload size={20} color={ACCENT} />
+          <div className="flex items-center justify-center gap-3.5">
+            <span className="inline-flex w-[42px] h-[42px] rounded-[10px] border items-center justify-center shrink-0" style={{ borderColor: "var(--brand-border)", background: "var(--brand-light)" }}>
+              <CloudUpload size={20} style={{ color: "var(--brand)" }} />
             </span>
-            <div style={{ textAlign: "left" }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 2 }}>
-                Drop a PDF here, or click to browse
-              </p>
-              <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
-                Files are stored securely and prepared for instant questions
-              </p>
+            <div className="text-left">
+              <p className="text-sm font-bold text-slate-900 mb-0.5">Drop a PDF here, or click to browse</p>
+              <p className="text-xs text-slate-500">Files are stored securely and prepared for instant questions</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Filter / Search Bar */}
+      {/* Search bar */}
       {docs.length > 0 && (
-        <div style={{ marginBottom: 14, display: "flex", justifyContent: "flex-end" }}>
-          <div style={{ position: "relative", width: 280 }}>
-            <Search size={14} color="#94a3b8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+        <div className="mb-3.5 flex justify-end">
+          <div className="relative w-[280px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search library documents…"
-              style={{
-                width: "100%", boxSizing: "border-box", padding: "8px 12px 8px 34px", borderRadius: 8,
-                border: "1px solid #cbd5e1", background: "#ffffff", fontSize: 12.5, color: "#0f172a", outline: "none",
-              }}
+              className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-300 bg-white text-[12.5px] text-slate-900 outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 transition-colors"
             />
           </div>
         </div>
       )}
 
-      {/* Document list */}
-      <div style={card}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 140px 110px", padding: "12px 20px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc", borderRadius: "14px 14px 0 0" }}>
+      {/* Document table */}
+      <div className={cardCls}>
+        <div className="grid gap-4 px-5 py-3 border-b border-slate-100 bg-slate-50 rounded-t-2xl" style={{ gridTemplateColumns: "1fr 110px 110px 140px 110px" }}>
           {["File Name", "Size", "Status", "Uploaded", "Actions"].map(h => (
-            <p key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a3b8" }}>{h}</p>
+            <p key={h} className="text-[10px] font-bold tracking-widest uppercase text-slate-400 m-0">{h}</p>
           ))}
         </div>
 
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 140px 110px", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #f8fafc" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f1f5f9" }} className="spin" />
-                <div style={{ height: 14, width: 140, background: "#f1f5f9", borderRadius: 4 }} />
+            <div key={i} className="grid items-center px-5 py-4 border-b border-slate-50 gap-4" style={{ gridTemplateColumns: "1fr 110px 110px 140px 110px" }}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 animate-pulse" />
+                <div className="h-3.5 w-36 bg-slate-100 rounded animate-pulse" />
               </div>
-              <div style={{ height: 12, width: 50, background: "#f1f5f9", borderRadius: 4 }} />
-              <div style={{ height: 12, width: 60, background: "#f1f5f9", borderRadius: 4 }} />
-              <div style={{ height: 12, width: 80, background: "#f1f5f9", borderRadius: 4 }} />
-              <div style={{ height: 12, width: 40, background: "#f1f5f9", borderRadius: 4 }} />
+              {[50, 60, 80, 40].map((w, j) => (
+                <div key={j} className="h-3 rounded animate-pulse bg-slate-100" style={{ width: w }} />
+              ))}
             </div>
           ))
         ) : filteredDocs.length === 0 ? (
-          <div style={{ padding: "48px 20px", textAlign: "center" }}>
-            <FileText size={30} color="#cbd5e1" style={{ margin: "0 auto 10px" }} />
-            <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>
+          <div className="py-12 px-5 text-center">
+            <FileText size={30} className="text-slate-300 mx-auto mb-2.5" />
+            <p className="text-sm font-bold text-slate-900 mb-1">
               {searchQuery ? "No matching documents found" : "No documents in library"}
             </p>
-            <p style={{ fontSize: 12, color: "#64748b" }}>
+            <p className="text-xs text-slate-500">
               {searchQuery ? `No PDF matches "${searchQuery}"` : "Upload your first PDF to begin asking questions and generating quizzes."}
             </p>
           </div>
@@ -257,80 +231,56 @@ export default function LibraryView() {
             const isReindexing = reindexing === doc.id;
 
             return (
-              <div key={doc.id} style={{
-                display: "grid", gridTemplateColumns: "1fr 110px 110px 140px 110px",
-                alignItems: "center", padding: "14px 20px",
-                borderBottom: idx < filteredDocs.length - 1 ? "1px solid #f8fafc" : "none",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              <div
+                key={doc.id}
+                className="grid items-center px-5 py-3.5 gap-4 hover:bg-slate-50 transition-colors"
+                style={{
+                  gridTemplateColumns: "1fr 110px 110px 140px 110px",
+                  borderBottom: idx < filteredDocs.length - 1 ? "1px solid #f8fafc" : "none",
+                }}
               >
-                {/* Name */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: ACCENT_LIGHT, border: `1px solid ${ACCENT_BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <FileText size={15} color={ACCENT} />
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center border" style={{ background: "var(--brand-light)", borderColor: "var(--brand-border)" }}>
+                    <FileText size={15} style={{ color: "var(--brand)" }} />
                   </div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {doc.filename}
-                  </p>
+                  <p className="text-[13px] font-semibold text-slate-900 truncate">{doc.filename}</p>
                 </div>
 
-                {/* Size */}
-                <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>{fmt(doc.size_bytes)}</p>
+                <p className="text-xs text-slate-500">{fmt(doc.size_bytes)}</p>
 
-                {/* Status */}
-                <div>
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 99,
-                    background: status.bg, color: status.color,
-                  }}>
-                    <StatusIcon size={11} className={statusKey === "processing" || isReindexing ? "spin" : ""} />
-                    {isReindexing ? "Indexing…" : status.label}
-                  </span>
-                </div>
+                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${status.bgCls}`}>
+                  <StatusIcon size={11} className={statusKey === "processing" || isReindexing ? "spin" : ""} />
+                  {isReindexing ? "Indexing…" : status.label}
+                </span>
 
-                {/* Uploaded */}
-                <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>{fmtD(doc.uploaded_at)}</p>
+                <p className="text-xs text-slate-500">{fmtD(doc.uploaded_at)}</p>
 
-                {/* Actions */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <button
-                    onClick={() => openViewer(doc)}
-                    title="View PDF"
-                    style={{ background: "#f1f5f9", border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: "#64748b", display: "flex", transition: "all 0.15s" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = ACCENT_LIGHT; e.currentTarget.style.color = ACCENT; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.color = "#64748b"; }}
-                  >
-                    <Eye size={14} />
-                  </button>
-                  <button
-                    onClick={() => reindex(doc)}
-                    disabled={isReindexing}
-                    title="Re-process PDF"
-                    style={{ background: "#f1f5f9", border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: "#64748b", display: "flex", transition: "all 0.15s" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = ACCENT_LIGHT; e.currentTarget.style.color = ACCENT; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.color = "#64748b"; }}
-                  >
-                    <RefreshCw size={14} className={isReindexing ? "spin" : ""} />
-                  </button>
-                  <button
-                    onClick={() => del(doc)}
-                    title="Delete PDF"
-                    style={{ background: "#f1f5f9", border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: "#64748b", display: "flex", transition: "all 0.15s" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#fee2e2"; e.currentTarget.style.color = "#dc2626"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.color = "#64748b"; }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                <div className="flex items-center gap-1.5">
+                  {[
+                    { onClick: () => openViewer(doc), title: "View PDF", icon: Eye, danger: false },
+                    { onClick: () => reindex(doc), title: "Re-process", icon: RefreshCw, danger: false, disabled: isReindexing, spin: isReindexing },
+                    { onClick: () => del(doc), title: "Delete PDF", icon: Trash2, danger: true },
+                  ].map((btn, bi) => (
+                    <button
+                      key={bi}
+                      onClick={btn.onClick}
+                      title={btn.title}
+                      disabled={"disabled" in btn ? btn.disabled : false}
+                      className={`flex items-center justify-center p-1.5 rounded-md border-none cursor-pointer text-slate-500 bg-slate-100 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        btn.danger
+                          ? "hover:bg-red-50 hover:text-red-600"
+                          : "hover:bg-[var(--brand-light)] hover:text-[var(--brand)]"
+                      }`}
+                    >
+                      <btn.icon size={14} className={"spin" in btn && btn.spin ? "spin" : ""} />
+                    </button>
+                  ))}
                 </div>
               </div>
             );
           })
         )}
       </div>
-
     </div>
   );
 }

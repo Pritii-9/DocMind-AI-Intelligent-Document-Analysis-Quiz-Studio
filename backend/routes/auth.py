@@ -174,7 +174,13 @@ def complete_signup(body: CompleteSignupIn):
     user = db.users.find_one({"email": email, "otp": body.otp})
     if not user:
         raise HTTPException(400, "Invalid email or OTP")
-    if datetime.now(timezone.utc) > user["otp_expires_at"].replace(tzinfo=timezone.utc):
+    
+    expires_at = user.get("otp_expires_at")
+    if not expires_at:
+        raise HTTPException(400, "OTP expired or invalid")
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(400, "OTP expired. Request a new one.")
 
     db.users.update_one(
