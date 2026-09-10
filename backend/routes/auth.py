@@ -89,6 +89,10 @@ class StartSignupIn(BaseModel):
     email: str
 
 
+class UpdateProfileIn(BaseModel):
+    name: str
+
+
 class CompleteSignupIn(BaseModel):
     name: str
     email: str
@@ -255,6 +259,16 @@ def me(user: dict = Depends(get_current_user)):
         raise HTTPException(404, "User not found")
     doc["_id"] = str(doc["_id"])
     return doc
+
+
+@router.patch("/update-profile")
+def update_profile(body: UpdateProfileIn, user: dict = Depends(get_current_user)):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "Name cannot be empty")
+    db = get_db()
+    db.users.update_one({"email": user["sub"]}, {"$set": {"name": name}})
+    return {"msg": "Profile updated successfully", "name": name}
 
 
 @router.get("/users")

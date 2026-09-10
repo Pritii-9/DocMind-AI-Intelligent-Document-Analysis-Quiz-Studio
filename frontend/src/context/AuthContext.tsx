@@ -12,6 +12,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (token: string, name: string, role: string) => void;
   logout: () => void;
+  updateUser: (name: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -20,22 +21,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
   const [user, setUser] = useState<AuthUser | null>(() => {
     const raw = localStorage.getItem("user");
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as AuthUser;
+    } catch {
+      return null;
+    }
   });
 
   useEffect(() => {
-    if (!token) return;
+    const appPath = token ? "/workspace" : "/";
+    const appState = token ? { appShell: "workspace" } : { appShell: "login" };
 
-    const workspacePath = "/workspace";
-    window.history.replaceState({ appShell: true }, "", workspacePath);
-    window.history.pushState({ appShell: true }, "", workspacePath);
+    if (token) {
+      if (window.location.pathname === "/") {
+        // Keep the login entry as an in-app sentinel so Back cannot leave the SPA.
+        window.history.replaceState({ appShell: "login-sentinel" }, "", "/");
+        window.history.pushState(appState, "", appPath);
+      } else if (window.location.pathname !== appPath || window.history.state?.appShell !== appState.appShell) {
+        window.history.replaceState(appState, "", appPath);
+        window.history.pushState(appState, "", appPath);
+      } else {
+        // Also arm the guard after a direct reload on /workspace.
+        window.history.pushState(appState, "", appPath);
+      }
+    } else if (window.location.pathname !== appPath || window.history.state?.appShell !== appState.appShell) {
+      window.history.replaceState(appState, "", appPath);
+    }
 
-    const keepWorkspaceOpen = () => {
-      window.history.pushState({ appShell: true }, "", workspacePath);
+    const restoreAppShell = () => {
+      if (token) {
+        // Browser Back reaches the sentinel; replace it with a fresh workspace entry.
+        if (window.location.pathname !== appPath || window.history.state?.appShell !== appState.appShell) {
+          window.history.replaceState(appState, "", appPath);
+        }
+        window.history.pushState(appState, "", appPath);
+      } else if (window.location.pathname !== appPath || window.history.state?.appShell !== appState.appShell) {
+        window.history.replaceState(appState, "", appPath);
+      }
     };
 
-    window.addEventListener("popstate", keepWorkspaceOpen);
-    return () => window.removeEventListener("popstate", keepWorkspaceOpen);
+    window.addEventListener("popstate", restoreAppShell);
+    window.addEventListener("pageshow", restoreAppShell);
+    return () => {
+      window.removeEventListener("popstate", restoreAppShell);
+      window.removeEventListener("pageshow", restoreAppShell);
+    };
   }, [token]);
 
   const login = (t: string, name: string, role: string) => {
@@ -55,8 +86,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.replace("/");
   };
 
+  const updateUser = (name: string) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, name };
+      localStorage.setItem("user", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const value = useMemo(
-    () => ({ token, user, isAuthenticated: !!token, login, logout }),
+    () => ({ token, user, isAuthenticated: !!token, login, logout, updateUser }),
     [token, user]
   );
 

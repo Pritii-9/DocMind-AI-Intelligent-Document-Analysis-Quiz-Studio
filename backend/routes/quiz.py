@@ -13,18 +13,16 @@ from services.ai_service import _chat, _extract_text
 
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
-QUIZ_PROMPT = """You are an expert quiz creator. Based on the text below, create exactly {n} high-quality multiple-choice questions (MCQs) for a student studying this topic.
+QUIZ_PROMPT = """You are an expert quiz creator for DocMind. Based on the text below, create exactly {n} high-quality multiple-choice questions (MCQs) for a student studying this topic.
 
 Rules:
-- Each question must test understanding, not just memorization
-- 4 options per question (A, B, C, D)
-- Only one correct answer
-- Explanation must be exactly 2-3 concise sentences
-- Explain directly why the correct answer is right
-- Keep the tone supportive and educational, like an expert tutor
+- Each question must test conceptual understanding, not just memorization
+- 4 clear options per question (A, B, C, D)
+- Exactly one correct answer per question
+- Pre-generate a complete, self-contained educational explanation (2-3 clear sentences) for each question explaining why the correct option is right and how it relates to the document content
+- Keep the tone supportive, precise, and educational
 - Base every explanation strictly on the PDF text; do not invent facts
-- Do not mention a student's selected answer because answers are provided later during review
-- Return ONLY valid JSON, no extra text
+- Return ONLY valid JSON, no extra markdown formatting or text
 
 Return this exact JSON structure:
 {{
@@ -40,7 +38,7 @@ Return this exact JSON structure:
         "D": "<option D>"
       }},
       "correct": "<A|B|C|D>",
-      "explanation": "<explanation of why the answer is correct>"
+      "explanation": "<pre-computed comprehensive explanation of why the correct answer is right>"
     }}
   ]
 }}
@@ -118,8 +116,8 @@ class FeedbackIn(BaseModel):
 def generate_quiz(body: GenerateQuizIn, user: dict = Depends(get_current_user)):
     if not ObjectId.is_valid(body.doc_id):
         raise HTTPException(400, "Invalid document id")
-    if not (5 <= body.count <= 20):
-        raise HTTPException(400, "count must be between 5 and 20")
+    if not (5 <= body.count <= 50):
+        raise HTTPException(400, "count must be between 5 and 50")
 
     owner = get_ws(user)
     db = get_db()

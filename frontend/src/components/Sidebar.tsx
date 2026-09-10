@@ -1,122 +1,168 @@
-import { LayoutDashboard, FileText, ShieldCheck, Users } from "lucide-react";
+import { LayoutDashboard, FileText, Bot, BookOpen, Users, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-export type AppSection = "overview" | "library" | "viewer" | "team";
+export type Tab = "dashboard" | "library" | "chat" | "team" | "quiz";
 
-type SidebarProps = {
-  currentSection: AppSection;
-  onNavigate: (section: AppSection) => void;
-  canManageTeam: boolean;
-  documentCount: number;
-  teamCount: number;
-  selectedDocumentName?: string;
-  collapsed?: boolean;
-};
+const ACCENT        = "oklch(45% 0.033 256.848)";
+const ACCENT_LIGHT  = "oklch(96% 0.015 256.848)";
 
-const navItems = [
-  { id: "overview", label: "Dashboard", icon: LayoutDashboard },
-  { id: "library", label: "Document Library", icon: FileText },
-  { id: "viewer", label: "Live Viewer", icon: ShieldCheck },
-  { id: "team", label: "Team Management", icon: Users },
-] as const;
+const NAV: { id: Tab; label: string; icon: any }[] = [
+  { id: "dashboard", label: "Dashboard",   icon: LayoutDashboard },
+  { id: "library",   label: "Library",     icon: FileText },
+  { id: "chat",      label: "Ask AI",      icon: Bot },
+  { id: "quiz",      label: "Quizzes",     icon: BookOpen },
+  { id: "team",      label: "Team",        icon: Users },
+];
 
-export default function Sidebar({
-  currentSection,
-  onNavigate,
-  canManageTeam,
-  documentCount,
-  teamCount,
-  selectedDocumentName,
-  collapsed = false,
-}: SidebarProps) {
+interface SidebarProps {
+  tab: Tab;
+  setTab: (tab: Tab) => void;
+  collapsed: boolean;
+  setCollapsed: (collapsed: boolean) => void;
+  onOpenSignOut: () => void;
+  onOpenProfile?: () => void;
+}
+
+export default function Sidebar({ tab, setTab, collapsed, setCollapsed, onOpenSignOut, onOpenProfile }: SidebarProps) {
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   return (
-    <aside 
-      className={`hidden lg:flex flex-col h-screen sticky top-0 border-r border-[var(--border-strong)] bg-[var(--panel)] transition-all duration-300 ease-in-out ${
-        collapsed ? "w-20" : "w-72"
-      }`}
-    >
-      {/* 1. BRANDING AREA - Perfectly aligned with Header Height (h-16) */}
-      <div className="h-16 flex items-center px-6 border-b border-[var(--border-strong)]">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-cyan-600 shadow-lg shadow-cyan-500/20 font-bold text-white">
-            S
-          </div>
+    <aside style={{
+      width: collapsed ? 64 : 220,
+      flexShrink: 0,
+      display: "flex", flexDirection: "column",
+      background: "#ffffff",
+      borderRight: "1px solid #e2e8f0",
+      transition: "width 0.2s ease",
+      position: "relative", zIndex: 20,
+    }}>
+
+      {/* Brand Header */}
+      <div style={{
+        height: 60, display: "flex", alignItems: "center",
+        justifyContent: collapsed ? "center" : "space-between",
+        padding: collapsed ? "0 14px" : "0 16px 0 20px",
+        borderBottom: "1px solid #f1f5f9", flexShrink: 0,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <img src="/logo.svg" alt="DocMind Logo" style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0 }} />
           {!collapsed && (
-            <span className="font-display text-xl font-bold tracking-tight text-[var(--text-strong)]">
-              DocMind<span className="text-[var(--accent)]">.AI</span>
+            <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.02em", color: "#0f172a" }}>
+              DocMind
             </span>
           )}
         </div>
+        {!collapsed && (
+          <button onClick={() => setCollapsed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex" }}
+            onMouseEnter={e => e.currentTarget.style.color = "#64748b"}
+            onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
+          >
+            <ChevronLeft size={15} />
+          </button>
+        )}
       </div>
 
-      {/* 2. STATS OVERVIEW - Clean & Minimalist */}
-      {!collapsed && (
-        <div className="px-6 py-8">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Docs</p>
-              <p className="text-xl font-bold text-[var(--text-strong)]">{documentCount}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">Team</p>
-              <p className="text-xl font-bold text-[var(--text-strong)]">{teamCount}</p>
-            </div>
-          </div>
-        </div>
+      {/* Expand button when collapsed */}
+      {collapsed && (
+        <button onClick={() => setCollapsed(false)} style={{
+          position: "absolute", top: 18, right: -12,
+          width: 24, height: 24, borderRadius: "50%",
+          background: "#ffffff", border: "1px solid #e2e8f0",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", color: "#94a3b8", zIndex: 30,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        }}>
+          <ChevronRight size={12} />
+        </button>
       )}
 
-      {/* 3. NAVIGATION */}
-      <nav className="flex-1 px-3 space-y-1">
-        <p className={`px-3 pb-3 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-soft)] ${collapsed ? "text-center" : ""}`}>
-          {collapsed ? "•••" : "Main Navigation"}
-        </p>
-        {navItems
-          .filter((item) => canManageTeam || item.id !== "team")
-          .map((item) => {
-            const Icon = item.icon;
-            const active = currentSection === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group ${
-                  active 
-                    ? "bg-[var(--accent-soft)] text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--accent-border)]" 
-                    : "text-[var(--text-soft)] hover:bg-[var(--panel-muted)] hover:text-[var(--text-strong)]"
-                }`}
-              >
-                <Icon size={20} className={active ? "text-[var(--accent)]" : "group-hover:text-[var(--text-strong)] transition-colors"} />
-                {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
-              </button>
-            );
-          })}
+      {/* Nav */}
+      <nav style={{ flex: 1, padding: "12px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
+        {!collapsed && (
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#cbd5e1", padding: "6px 12px" }}>
+            Workspace
+          </p>
+        )}
+        {NAV.filter(n => isAdmin || n.id !== "team").map(({ id, label, icon: Icon }) => {
+          const active = tab === id;
+          return (
+            <button key={id} onClick={() => setTab(id)} title={collapsed ? label : undefined}
+              style={{
+                display: "flex", alignItems: "center",
+                gap: collapsed ? 0 : 10,
+                justifyContent: collapsed ? "center" : "flex-start",
+                width: "100%", padding: collapsed ? "10px 0" : "9px 12px",
+                borderRadius: 8, border: "none", cursor: "pointer",
+                transition: "all 0.15s",
+                background: active ? ACCENT_LIGHT : "transparent",
+                color: active ? ACCENT : "#64748b",
+                position: "relative",
+              }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.color = "#0f172a"; } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#64748b"; } }}
+            >
+              {active && (
+                <div style={{
+                  position: "absolute", left: 0, top: "20%", bottom: "20%",
+                  width: 3, borderRadius: "0 3px 3px 0", background: ACCENT,
+                }} />
+              )}
+              <Icon size={16} />
+              {!collapsed && <span style={{ fontSize: 13, fontWeight: active ? 600 : 500, flex: 1, textAlign: "left" }}>{label}</span>}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* 4. ACTIVE FOCUS BOX */}
-      {!collapsed && (
-        <div className="mx-4 mb-6 p-4 rounded-2xl bg-[var(--panel-muted)] border border-[var(--border-strong)]">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]/60 mb-2">Active Focus</p>
-          <p className="text-xs font-bold text-[var(--text-strong)] truncate leading-relaxed">
-            {selectedDocumentName || "Standby Mode"}
-          </p>
-        </div>
-      )}
-
-      {/* 5. USER FOOTER */}
-      <div className="p-4 border-t border-[var(--border-strong)] bg-[var(--panel-muted)]">
-        <div className={`flex items-center gap-3 p-2 rounded-2xl ${collapsed ? "justify-center" : ""}`}>
-          <div className="h-9 w-9 rounded-xl bg-[var(--panel)] border border-[var(--border-strong)] flex items-center justify-center text-xs font-bold text-[var(--text-soft)] shadow-inner">
+      {/* User footer */}
+      <div style={{ borderTop: "1px solid #f1f5f9", padding: "10px 8px", flexShrink: 0 }}>
+        <div
+          onClick={onOpenProfile}
+          title="Click to view Account & Security Specs"
+          style={{
+            display: "flex", alignItems: "center",
+            gap: collapsed ? 0 : 10,
+            justifyContent: collapsed ? "center" : "flex-start",
+            padding: collapsed ? "8px 0" : "8px 10px",
+            borderRadius: 8, background: "#f8fafc",
+            cursor: "pointer", transition: "all 0.15s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = ACCENT_LIGHT}
+          onMouseLeave={e => e.currentTarget.style.background = "#f8fafc"}
+        >
+          <div style={{
+            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+            background: ACCENT,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 12, fontWeight: 700, color: "#fff",
+          }}>
             {user?.name?.charAt(0).toUpperCase() || "U"}
           </div>
           {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-[var(--text-strong)] truncate">{user?.name || "User"}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-soft)]">{user?.role || "Member"}</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</p>
+              <p style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600, marginTop: 1 }}>{user?.role}</p>
             </div>
           )}
         </div>
+        <button onClick={onOpenSignOut} title={collapsed ? "Sign out" : undefined}
+          style={{
+            display: "flex", alignItems: "center",
+            gap: collapsed ? 0 : 9,
+            justifyContent: collapsed ? "center" : "flex-start",
+            width: "100%", marginTop: 4,
+            padding: collapsed ? "9px 0" : "8px 12px",
+            borderRadius: 8, border: "none",
+            background: "transparent", color: "#94a3b8",
+            fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#fee2e2"; e.currentTarget.style.color = "#dc2626"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#94a3b8"; }}
+        >
+          <LogOut size={15} />
+          {!collapsed && "Sign out"}
+        </button>
       </div>
     </aside>
   );

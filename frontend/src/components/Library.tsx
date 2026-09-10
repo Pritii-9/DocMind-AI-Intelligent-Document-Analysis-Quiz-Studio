@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Upload, Trash2, Eye, RefreshCw, X, CloudUpload, CheckCircle, Clock, AlertCircle, Loader } from "lucide-react";
+import { FileText, Upload, Trash2, Eye, RefreshCw, X, CloudUpload, CheckCircle, Clock, AlertCircle, Loader, Search } from "lucide-react";
 import api from "../api/client";
 import { useToast } from "../context/ToastContext";
 
@@ -31,6 +31,7 @@ const statusMap: Record<string, { icon: any; color: string; bg: string; label: s
 export default function LibraryView() {
   const { toast, confirm }          = useToast();
   const [docs, setDocs]             = useState<Doc[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading]       = useState(true);
   const [uploading, setUp]          = useState(false);
   const [progress, setProgress]     = useState(0);
@@ -105,6 +106,8 @@ export default function LibraryView() {
     setReindexing(null);
     toast.success(`Processed "${doc.filename}" successfully.`);
   }
+
+  const filteredDocs = docs.filter(d => d.filename.toLowerCase().includes(searchQuery.toLowerCase()));
 
   // ── PDF Viewer Modal ──
   if (viewer) return (
@@ -196,6 +199,25 @@ export default function LibraryView() {
         )}
       </div>
 
+      {/* Filter / Search Bar */}
+      {docs.length > 0 && (
+        <div style={{ marginBottom: 14, display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ position: "relative", width: 280 }}>
+            <Search size={14} color="#94a3b8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search library documents…"
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "8px 12px 8px 34px", borderRadius: 8,
+                border: "1px solid #cbd5e1", background: "#ffffff", fontSize: 12.5, color: "#0f172a", outline: "none",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Document list */}
       <div style={card}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 140px 110px", padding: "12px 20px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc", borderRadius: "14px 14px 0 0" }}>
@@ -217,14 +239,18 @@ export default function LibraryView() {
               <div style={{ height: 12, width: 40, background: "#f1f5f9", borderRadius: 4 }} />
             </div>
           ))
-        ) : docs.length === 0 ? (
+        ) : filteredDocs.length === 0 ? (
           <div style={{ padding: "48px 20px", textAlign: "center" }}>
             <FileText size={30} color="#cbd5e1" style={{ margin: "0 auto 10px" }} />
-            <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>No documents in library</p>
-            <p style={{ fontSize: 12, color: "#64748b" }}>Upload your first PDF to begin asking questions and generating quizzes.</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>
+              {searchQuery ? "No matching documents found" : "No documents in library"}
+            </p>
+            <p style={{ fontSize: 12, color: "#64748b" }}>
+              {searchQuery ? `No PDF matches "${searchQuery}"` : "Upload your first PDF to begin asking questions and generating quizzes."}
+            </p>
           </div>
         ) : (
-          docs.map((doc, idx) => {
+          filteredDocs.map((doc, idx) => {
             const statusKey = (doc.ai_index_status || "ready").toLowerCase();
             const status = statusMap[statusKey] || statusMap.ready;
             const StatusIcon = status.icon;
@@ -234,7 +260,7 @@ export default function LibraryView() {
               <div key={doc.id} style={{
                 display: "grid", gridTemplateColumns: "1fr 110px 110px 140px 110px",
                 alignItems: "center", padding: "14px 20px",
-                borderBottom: idx < docs.length - 1 ? "1px solid #f8fafc" : "none",
+                borderBottom: idx < filteredDocs.length - 1 ? "1px solid #f8fafc" : "none",
                 transition: "background 0.15s",
               }}
               onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}

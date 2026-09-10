@@ -99,6 +99,17 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   border-radius: var(--radius-sm);
 }
 
+.quiz-shell { width: 100%; }
+.quiz-card-grid > div { min-height: 148px; }
+
+@media (max-width: 700px) {
+  .quiz-shell { padding: 16px !important; }
+  .quiz-shell h1 { font-size: 20px !important; }
+  .quiz-card-grid { grid-template-columns: 1fr !important; }
+  .quiz-form-panel,
+  .quiz-flow-panel { max-width: none !important; }
+}
+
 /* AI answers */
 .ai-message-markdown > :first-child { margin-top: 0; }
 .ai-message-markdown > :last-child { margin-bottom: 0; }
