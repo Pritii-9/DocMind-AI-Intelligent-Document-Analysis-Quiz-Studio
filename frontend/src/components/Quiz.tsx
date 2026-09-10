@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Plus, FileText, CheckCircle2, XCircle, ArrowRight, Trash2, Award, MessageSquare, Zap, RotateCcw, Search } from "lucide-react";
+import { BookOpen, Plus, FileText, CheckCircle2, XCircle, ArrowRight, Trash2, Award, MessageSquare, HelpCircle, RotateCcw, Search } from "lucide-react";
 import api from "../api/client";
 import CustomSelect from "./CustomSelect";
 import { useToast } from "../context/ToastContext";
@@ -114,7 +114,7 @@ export default function QuizView() {
         topic: topic.trim() || null,
         purpose: purpose.trim() || null,
       });
-      toast.success("Quiz & explanations generated!");
+      toast.success("Quiz generated successfully!");
       await load();
       startQuiz(normalizeQuiz(data));
     } catch (e: unknown) {
@@ -137,7 +137,6 @@ export default function QuizView() {
   }
 
   function selectOption(qId: string, opt: "A" | "B" | "C" | "D") {
-    // Only select the answer, explanation is NOT shown until user explicitly clicks Explain
     setAnswers(p => ({ ...p, [qId]: opt }));
   }
 
@@ -210,11 +209,9 @@ export default function QuizView() {
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
             <div>
-              <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0f172a" }}>Quizzes & Study Studio</h1>
-              <p style={{ fontSize: 13, color: "#64748b", marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
-                Practice questions with <span style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", padding: "1px 8px", borderRadius: 99, fontSize: 11, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <Zap size={11} /> Instant pre-computed AI explanations
-                </span>
+              <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0f172a" }}>Quizzes</h1>
+              <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>
+                Practice questions and review key concepts from your document library.
               </p>
             </div>
             <button
@@ -254,7 +251,7 @@ export default function QuizView() {
             <div style={{ ...S, textAlign: "center", padding: "40px 24px" }}>
               <BookOpen size={40} color="#cbd5e1" style={{ margin: "0 auto 12px" }} />
               <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>No quizzes generated yet</h3>
-              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Select an uploaded PDF to auto-generate MCQs with pre-computed explanations ready instantly.</p>
+              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Select an uploaded PDF to auto-generate multiple-choice practice sets.</p>
               <button onClick={() => setMode("generate")} style={{ background: ACCENT, color: "#fff", border: "none", borderRadius: 9, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 Generate your first quiz
               </button>
@@ -274,7 +271,7 @@ export default function QuizView() {
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                       <span style={{ fontSize: 11, fontWeight: 600, background: ACCENT_LIGHT, color: ACCENT, padding: "3px 9px", borderRadius: 99, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        <Zap size={11} /> {q.questions.length} Questions (Explanations Pre-loaded)
+                        <BookOpen size={11} /> {q.questions.length} Questions
                       </span>
                       <button onClick={e => deleteQuiz(q, e)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: 3, borderRadius: 6 }}
                         onMouseEnter={e => e.currentTarget.style.color = "#dc2626"}
@@ -317,8 +314,8 @@ export default function QuizView() {
           </button>
 
           <div style={{ marginBottom: 20 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>Generate Quiz with Pre-computed Explanations</h1>
-            <p style={{ color: "#64748b", fontSize: 13 }}>Explanations for all questions are generated upfront to save AI tokens and eliminate waiting time during review.</p>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>Generate Quiz</h1>
+            <p style={{ color: "#64748b", fontSize: 13 }}>Choose a PDF document and question count to create a practice set.</p>
           </div>
 
           <div style={{ ...S, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -373,13 +370,6 @@ export default function QuizView() {
               </div>
             </div>
 
-            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-              <Zap size={18} color="#16a34a" style={{ flexShrink: 0 }} />
-              <div style={{ fontSize: 12, color: "#475569" }}>
-                <strong>System Optimization:</strong> Explanations are pre-loaded. Clicking "Explain" when taking the quiz takes <strong>0ms</strong> and uses <strong>0 AI tokens</strong>.
-              </div>
-            </div>
-
             <button
               onClick={generate} disabled={!selDoc || generating}
               style={{
@@ -392,7 +382,7 @@ export default function QuizView() {
               {generating ? (
                 <>
                   <div style={{ width: 15, height: 15, borderRadius: "50%", border: "2px solid #fff", borderTopColor: "transparent" }} className="spin" />
-                  Generating quiz & explanations…
+                  Generating quiz…
                 </>
               ) : (
                 "Generate Quiz"
@@ -402,7 +392,7 @@ export default function QuizView() {
         </div>
       )}
 
-      {/* ── TAKE MODE (LIVE QUIZ WINDOW - FULL HEIGHT, STICKY NO SCROLL VIEW) ── */}
+      {/* ── TAKE MODE (LIVE QUIZ WINDOW - CLEAN & FOCUSED) ── */}
       {mode === "take" && activeQuiz && (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", maxWidth: 900, width: "100%", margin: "0 auto", gap: 12 }}>
 
@@ -469,7 +459,7 @@ export default function QuizView() {
             </div>
           </div>
 
-          {/* Main Question Window Card (Fits in View Window Cleanly) */}
+          {/* Main Question Window Card */}
           {(() => {
             const q = activeQuiz.questions[currentQuestion];
             const userSelected = answers[q.id];
@@ -500,7 +490,6 @@ export default function QuizView() {
                       let badgeBorder = "#cbd5e1";
                       let badgeTextColor = "#64748b";
 
-                      // Green/Red highlight IS ONLY ACTIVE when explanation button has been clicked!
                       if (isRevealed) {
                         if (isRightOpt) {
                           optBg = "#f0fdf4"; optBorder = "#bbf7d0"; optTextColor = "#15803d";
@@ -510,7 +499,6 @@ export default function QuizView() {
                           badgeBg = "#dc2626"; badgeBorder = "#dc2626"; badgeTextColor = "#ffffff";
                         }
                       } else if (isSel) {
-                        // User selected state (Clean accent selection, NO green/red yet until Explain is clicked)
                         optBg = ACCENT_LIGHT; optBorder = ACCENT; optTextColor = ACCENT;
                         badgeBg = ACCENT; badgeBorder = ACCENT; badgeTextColor = "#ffffff";
                       }
@@ -570,7 +558,7 @@ export default function QuizView() {
                     })}
                   </div>
 
-                  {/* Pre-computed Explanation Box (VISIBILITY ONLY WHEN USER CLICKS EXPLAIN BUTTON) */}
+                  {/* Clean Explanation Box */}
                   {isRevealed && (
                     <div className="animate-in" style={{
                       padding: "14px 16px", borderRadius: 10,
@@ -578,14 +566,9 @@ export default function QuizView() {
                       border: `1px solid ${isCorrect ? "#bbf7d0" : "#fca5a5"}`,
                       borderLeft: `4px solid ${isCorrect ? "#16a34a" : "#dc2626"}`,
                     }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: isCorrect ? "#15803d" : "#b91c1c" }}>
-                          {isCorrect ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                          {isCorrect ? "Correct!" : `Incorrect — Correct answer is (${q.correct})`}
-                        </span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "#64748b", background: "rgba(255,255,255,0.8)", padding: "2px 6px", borderRadius: 4 }}>
-                          ⚡ Instant Explanation (0 Tokens Used)
-                        </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 700, color: isCorrect ? "#15803d" : "#b91c1c" }}>
+                        {isCorrect ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                        {isCorrect ? "Correct answer!" : `Incorrect — Correct answer is Option ${q.correct}`}
                       </div>
                       <p style={{ fontSize: 12.5, color: "#334155", margin: 0, lineHeight: 1.5 }}>
                         {q.explanation}
@@ -617,10 +600,9 @@ export default function QuizView() {
 
                 </div>
 
-                {/* Bottom Action Toolbar (Fixed at Bottom of Card) */}
+                {/* Bottom Action Toolbar */}
                 <div style={{ padding: "12px 20px", borderTop: "1px solid #f1f5f9", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 10 }}>
                   <div style={{ display: "flex", gap: 8 }}>
-                    {/* EXPLAIN BUTTON: Clicking this reveals/hides the explanation and answer check */}
                     <button
                       onClick={() => toggleExplanation(q.id)}
                       disabled={!userSelected}
@@ -635,7 +617,7 @@ export default function QuizView() {
                         opacity: userSelected ? 1 : 0.5,
                       }}
                     >
-                      <Zap size={14} />
+                      <HelpCircle size={14} />
                       {isRevealed ? "Hide Explanation" : "Explain"}
                     </button>
 
@@ -702,7 +684,7 @@ export default function QuizView() {
               {scoreResult.pct >= 80
                 ? "Excellent performance! You've mastered this topic."
                 : scoreResult.pct >= 60
-                ? "Good job! Review the pre-computed explanations below to sharpen your knowledge."
+                ? "Good job! Review the explanations below to sharpen your knowledge."
                 : "Keep practicing! Explore the detailed explanations below to understand key concepts."}
             </p>
 
@@ -719,7 +701,7 @@ export default function QuizView() {
           {/* Review Filter Bar */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
-              Instant Explanation Review
+              Question Review
             </h3>
             <div style={{ display: "flex", gap: 6, background: "#ffffff", padding: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}>
               {(["all", "incorrect", "correct"] as const).map(f => (
@@ -800,15 +782,10 @@ export default function QuizView() {
                       })}
                     </div>
 
-                    {/* Pre-computed Explanation */}
+                    {/* Clean Explanation Box */}
                     <div style={{ paddingLeft: 32 }}>
                       <div style={{ background: "#ffffff", padding: "12px 16px", borderRadius: 10, border: "1px solid #e2e8f0", borderLeft: `4px solid ${ACCENT}` }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: ACCENT, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                            <Zap size={11} /> Pre-computed AI Explanation
-                          </span>
-                          <span style={{ fontSize: 10, color: "#94a3b8" }}>0ms Latency • Instant</span>
-                        </div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: ACCENT, margin: "0 0 4px" }}>Explanation</p>
                         <p style={{ fontSize: 12.5, color: "#475569", margin: 0, lineHeight: 1.5 }}>
                           {q.explanation}
                         </p>

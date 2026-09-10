@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, ShieldCheck, Key, Lock, CheckCircle2, X, Save, Building, ShieldAlert } from "lucide-react";
+import { User, CheckCircle2, X, Save, Building } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import api from "../api/client";
@@ -62,7 +62,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
           border: "1px solid #e2e8f0",
           width: "100%",
-          maxWidth: 520,
+          maxWidth: 480,
           overflow: "hidden",
           fontFamily: "'Inter', system-ui, sans-serif",
         }}
@@ -76,11 +76,11 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: ACCENT_LIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ShieldCheck size={18} color={ACCENT} />
+              <User size={18} color={ACCENT} />
             </div>
             <div>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: 0 }}>Account & Security Profile</h3>
-              <p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>Manage user identity & workspace security context</p>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: 0 }}>Account Settings</h3>
+              <p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>Manage your display name and view account details</p>
             </div>
           </div>
           <button
@@ -94,7 +94,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         {/* Modal Body */}
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
 
-          {/* User Header Badge */}
+          {/* User Profile Card */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#f8fafc", padding: 14, borderRadius: 12, border: "1px solid #e2e8f0" }}>
             <div style={{
               width: 44, height: 44, borderRadius: 12, background: ACCENT,
@@ -117,7 +117,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   {user?.role}
                 </span>
               </div>
-              <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>{userDetails?.email || "Authenticated User"}</p>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>{userDetails?.email || "Workspace Member"}</p>
             </div>
           </div>
 
@@ -131,6 +131,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
+                placeholder="Enter your name"
                 style={{
                   flex: 1, border: "1px solid #cbd5e1", borderRadius: 8, padding: "9px 12px",
                   fontSize: 13, color: "#0f172a", outline: "none", background: "#ffffff",
@@ -152,36 +153,27 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             </div>
           </div>
 
-          {/* Security & Multi-tenant Specs */}
+          {/* Account Overview */}
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b", marginBottom: 10 }}>
-              Workspace Security Specifications
+              Account Overview
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                 <span style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Building size={14} color="#64748b" /> Workspace Owner ID
+                  <Building size={14} color="#64748b" /> Workspace Owner
                 </span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", fontFamily: "monospace" }}>
-                  {user?.workspace_owner || "Tenant Domain"}
-                </span>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                <span style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Key size={14} color="#64748b" /> Auth Token Architecture
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#15803d", background: "#dcfce7", padding: "2px 8px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <CheckCircle2 size={11} /> JWT Bearer (HS256)
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>
+                  {user?.workspace_owner || "Personal Workspace"}
                 </span>
               </div>
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                 <span style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Lock size={14} color="#64748b" /> Password Hashing
+                  <CheckCircle2 size={14} color="#16a34a" /> Account Status
                 </span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#0f172a" }}>
-                  bcrypt (12 Salt Rounds)
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#15803d", background: "#dcfce7", padding: "2px 8px", borderRadius: 6 }}>
+                  Active & Verified
                 </span>
               </div>
             </div>

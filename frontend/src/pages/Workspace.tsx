@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import Dashboard from "../components/Dashboard";
@@ -38,7 +39,7 @@ export default function Workspace() {
   return (
     <div style={{ display: "flex", height: "100vh", background: "#f8fafc", overflow: "hidden", fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      {/* ── Profile & Security Modal ── */}
+      {/* ── Profile Modal ── */}
       <ProfileModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
@@ -79,9 +80,9 @@ export default function Workspace() {
             <p
               onClick={() => setShowProfileModal(true)}
               style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, cursor: "pointer" }}
-              title="View Account & Security Specs"
+              title="View Account Details"
             >
-              Welcome back, <span style={{ color: ACCENT, fontWeight: 600, textDecoration: "underline" }}>{user?.name}</span>
+              Welcome back, <span style={{ color: ACCENT, fontWeight: 600 }}>{user?.name}</span>
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -94,7 +95,7 @@ export default function Workspace() {
                 color: "#475569", cursor: "pointer", transition: "all 0.15s",
               }}
             >
-              Security Profile
+              <User size={13} /> Account
             </button>
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
