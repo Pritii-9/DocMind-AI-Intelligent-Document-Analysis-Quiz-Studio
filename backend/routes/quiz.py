@@ -19,7 +19,11 @@ Rules:
 - Each question must test understanding, not just memorization
 - 4 options per question (A, B, C, D)
 - Only one correct answer
-- Explanation must be 2-3 sentences explaining WHY the answer is correct
+- Explanation must be exactly 2-3 concise sentences
+- Explain directly why the correct answer is right
+- Keep the tone supportive and educational, like an expert tutor
+- Base every explanation strictly on the PDF text; do not invent facts
+- Do not mention a student's selected answer because answers are provided later during review
 - Return ONLY valid JSON, no extra text
 
 Return this exact JSON structure:
@@ -63,7 +67,7 @@ def _generate_mcqs(text: str, count: int = 10, topic: str = "", purpose: str = "
 
     raw = _chat(
         [
-            {"role": "system", "content": "You are a quiz generator. Always respond with valid JSON only. No markdown code blocks."},
+            {"role": "system", "content": "You are an expert educational quiz generator for DocMind. Create concise, supportive, document-grounded explanations for students. Always respond with valid JSON only. No markdown code blocks."},
             {"role": "user", "content": prompt},
         ],
         temperature=0.4,
@@ -98,6 +102,14 @@ class ScoreIn(BaseModel):
     score: int
     total: int
     pct: int
+
+
+class FeedbackIn(BaseModel):
+    question: str
+    options: dict[str, str]
+    correct: str
+    selected: str
+    explanation: str
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -201,6 +213,39 @@ def save_score(quiz_id: str, body: ScoreIn, user: dict = Depends(get_current_use
     if result.matched_count == 0:
         raise HTTPException(404, "Quiz not found")
     return {"msg": "Score saved", **attempt}
+
+
+@router.post("/feedback")
+def question_feedback(body: FeedbackIn, user: dict = Depends(get_current_user)):
+    if body.selected not in body.options or body.correct not in body.options:
+        raise HTTPException(400, "Invalid answer option")
+
+    result = _chat(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert, encouraging AI tutor in DocMind. "
+                    "Give immediate feedback for one multiple-choice quiz answer. "
+                    "Reply in 2 concise sentences maximum, explain why the correct answer is right, "
+                    "and if the selection is wrong, briefly explain the mistake. "
+                    "Use only the supplied question and explanation."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Question: {body.question}\n"
+                    f"Options: {json.dumps(body.options)}\n"
+                    f"Selected option: {body.selected} ({body.options[body.selected]})\n"
+                    f"Correct option: {body.correct} ({body.options[body.correct]})\n"
+                    f"Document-grounded explanation: {body.explanation}"
+                ),
+            },
+        ],
+        temperature=0.2,
+    )
+    return {"feedback": result.strip()}
 
 
 @router.get("/{quiz_id}")

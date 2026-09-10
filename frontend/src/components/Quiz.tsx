@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Plus, FileText, CheckCircle2, XCircle, ArrowRight, Trash2, Award } from "lucide-react";
+import { BookOpen, Plus, FileText, CheckCircle2, XCircle, ArrowRight, Trash2, Award, MessageSquare, Sparkles } from "lucide-react";
 import api from "../api/client";
 import CustomSelect from "./CustomSelect";
 import { useToast } from "../context/ToastContext";
@@ -10,6 +10,7 @@ interface QuizQuestion {
   options: { A: string; B: string; C: string; D: string };
   correct: "A" | "B" | "C" | "D";
   explanation: string;
+  user_note?: string;
 }
 
 interface QuizItem {
@@ -77,6 +78,10 @@ export default function QuizView() {
   const [generating, setGen]          = useState(false);
   const [genError, setGenErr]         = useState("");
   const [answers, setAnswers]         = useState<Record<string, "A" | "B" | "C" | "D">>({});
+  const [feedback, setFeedback]       = useState<Record<string, string>>({});
+  const [feedbackLoading, setFeedbackLoading] = useState<Record<string, boolean>>({});
+  const [comments, setComments]       = useState<Record<string, string>>({});
+  const [commentOpen, setCommentOpen] = useState<Record<string, boolean>>({});
   const [scoreResult, setScoreResult] = useState<{ score: number; total: number; pct: number } | null>(null);
 
   const load = () => {
@@ -113,7 +118,49 @@ export default function QuizView() {
   }
 
   function startQuiz(q: QuizItem) {
-    setActiveQuiz(q); setAnswers({}); setScoreResult(null); setMode("take");
+    setActiveQuiz(q);
+    setAnswers({});
+    setFeedback({});
+    setFeedbackLoading({});
+    setComments(Object.fromEntries(q.questions.map(question => [question.id, question.user_note || ""])));
+    setCommentOpen({});
+    setScoreResult(null);
+    setMode("take");
+  }
+
+  async function getFeedback(question: QuizQuestion) {
+    const selected = answers[question.id];
+    if (!selected || feedbackLoading[question.id] || !activeQuiz) return;
+    setFeedbackLoading(previous => ({ ...previous, [question.id]: true }));
+    try {
+      const { data } = await api.post("/quiz/feedback", {
+        question: question.question,
+        options: question.options,
+        correct: question.correct,
+        selected,
+        explanation: question.explanation,
+      });
+      setFeedback(previous => ({ ...previous, [question.id]: data.feedback }));
+    } catch {
+      setFeedback(previous => ({
+        ...previous,
+        [question.id]: selected === question.correct
+          ? `Correct. ${question.explanation}`
+          : `The correct answer is ${question.correct}. ${question.explanation}`,
+      }));
+    } finally {
+      setFeedbackLoading(previous => ({ ...previous, [question.id]: false }));
+    }
+  }
+
+  async function saveComment(questionId: string) {
+    if (!activeQuiz) return;
+    await api.patch(`/quiz/${activeQuiz.id}/note`, {
+      question_id: questionId,
+      note: comments[questionId] || "",
+    });
+    toast.success("Comment saved");
+    setCommentOpen(previous => ({ ...previous, [questionId]: false }));
   }
 
   async function submitQuiz() {
@@ -368,6 +415,49 @@ export default function QuizView() {
                     );
                   })}
                 </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+                  <button
+                    onClick={() => getFeedback(q)}
+                    disabled={!answers[q.id] || feedbackLoading[q.id]}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid #cbd5e1", borderRadius: 8, padding: "8px 11px", background: "#fff", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: answers[q.id] && !feedbackLoading[q.id] ? "pointer" : "not-allowed", opacity: answers[q.id] ? 1 : 0.5 }}
+                  >
+                    <Sparkles size={14} />
+                    {feedbackLoading[q.id] ? "Checking…" : "Check answer"}
+                  </button>
+                  <button
+                    onClick={() => setCommentOpen(previous => ({ ...previous, [q.id]: !previous[q.id] }))}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid #cbd5e1", borderRadius: 8, padding: "8px 11px", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    <MessageSquare size={14} />
+                    {comments[q.id] ? "Edit comment" : "Add comment"}
+                  </button>
+                </div>
+
+                {feedback[q.id] && (
+                  <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 8, background: ACCENT_LIGHT, borderLeft: `3px solid ${ACCENT}`, color: "#334155", fontSize: 12, lineHeight: 1.5 }}>
+                    <strong style={{ display: "block", marginBottom: 3, color: ACCENT }}>AI feedback</strong>
+                    {feedback[q.id]}
+                  </div>
+                )}
+
+                {commentOpen[q.id] && (
+                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <textarea
+                      value={comments[q.id] || ""}
+                      onChange={event => setComments(previous => ({ ...previous, [q.id]: event.target.value }))}
+                      placeholder="Write a note about this question…"
+                      rows={2}
+                      style={{ width: "100%", boxSizing: "border-box", resize: "vertical", border: "1px solid #cbd5e1", borderRadius: 8, padding: "9px 10px", fontSize: 12, fontFamily: "inherit", color: "#0f172a" }}
+                    />
+                    <button
+                      onClick={() => saveComment(q.id)}
+                      style={{ alignSelf: "flex-start", border: "none", borderRadius: 7, padding: "7px 11px", background: ACCENT, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Save comment
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -444,6 +534,12 @@ export default function QuizView() {
                       );
                     })}
                   </div>
+
+                  {!isCorrect && userAns && (
+                    <p style={{ paddingLeft: 28, fontSize: 12, color: "#b91c1c", margin: "0 0 12px", lineHeight: 1.5 }}>
+                      You selected <strong>{userAns}: {q.options[userAns]}</strong>. The correct answer is <strong>{q.correct}: {q.options[q.correct]}</strong>.
+                    </p>
+                  )}
 
                   <div style={{ paddingLeft: 28, background: "#f8fafc", padding: "10px 14px", borderRadius: 8, borderLeft: `3px solid ${ACCENT}` }}>
                     <p style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", margin: "0 0 2px 0" }}>Explanation</p>
