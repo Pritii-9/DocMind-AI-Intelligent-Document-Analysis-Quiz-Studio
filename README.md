@@ -1,7 +1,7 @@
 <div align="center">
 
 # 🧠 DocMind AI
-### **Smart Document Workspace & Practice Studio**
+### **Smart Document Workspace, Practice Studio & Telemetry Engine**
 
 [![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -12,7 +12,7 @@
 
 ---
 
-**DocMind AI** is an intelligent workspace designed for reading, querying, and reviewing long PDF documents. Instead of scanning through hundreds of pages manually, upload your files to ask questions, pull exact citations, and generate practice quizzes in seconds.
+**DocMind AI** is an intelligent workspace designed for reading, querying, and reviewing long PDF documents. Upload your files to ask questions, pull exact citations, generate practice quizzes with zero-latency pre-computed explanations, and inspect live backend telemetry.
 
 </div>
 
@@ -20,13 +20,14 @@
 
 ## 💡 Why DocMind AI?
 
-Traditional document workflows require manual Ctrl+F searches, disjointed note-taking, and slow revision cycles. **DocMind AI** unifies document storage, semantic search, and self-assessment into a clean workspace:
+Traditional document workflows require manual Ctrl+F searches, disjointed note-taking, and slow revision cycles. **DocMind AI** unifies document storage, semantic search, self-assessment, and system telemetry into a clean workspace:
 
 * 🔍 **Instant Answers with Source Quotes**: Ask questions across a single PDF or your whole library. DocMind scans document text and provides exact page-level citations.
-* 📚 **Turn Documents into Quizzes**: Automatically convert complex PDFs into structured multiple-choice practice sets complete with step-by-step explanations.
-* ⚡ **Sub-Second Performance**: Powered by Groq fast inference (`groq/compound`) and local vector indexing for low-latency search and answer generation.
-* 🔒 **Encrypted S3 Infrastructure**: Multi-tenant AWS S3 storage with AES-256 encryption, role-based workspace permissions, and secure byte-range streaming.
-* 🎨 **Clean, Focused UI**: Built with a sleek navy accent palette, Inter typography, and intuitive custom components without noisy visual clutter.
+* ⚡ **Pre-computed MCQ Explanations**: Quizzes pre-generate explanations during creation, delivering **0ms instant feedback** and saving ~90% of LLM token costs.
+* 📊 **Live System Telemetry & Diagnostics**: Dedicated Telemetry tab with live API ping diagnostic tests, FastEmbed vector counts, and S3 streaming metrics.
+* 💬 **Optimized Chat Studio**: Centered 820px reading container with compact `fit-content` bubbles, avatars, and keyboard shortcuts.
+* 🔎 **Real-time Library & Quiz Search**: Instant search filtering across uploaded documents and generated practice sets.
+* 🔒 **Encrypted S3 Infrastructure & Account Profile**: Multi-tenant AWS S3 storage with AES-256 encryption, account settings profile modal, and byte-range proxy streaming.
 
 ---
 
@@ -35,19 +36,25 @@ Traditional document workflows require manual Ctrl+F searches, disjointed note-t
 ### 1. Document Q&A & Semantic Search
 - **Library-Wide Querying**: Target a single PDF or ask questions across your entire document collection.
 - **Citation Tracking**: View exact textual evidence directly alongside AI responses.
+- **Optimal Line-Length UX**: Centered chat stream with auto-fitting message bubbles.
 
-### 2. Quiz Studio & Self-Assessment
-- **Automated MCQ Generation**: Synthesize 5 to 20 structured practice questions from any PDF excerpt.
-- **Detailed Explanations**: Review correct choices and understand key concepts instantly.
-- **Score Tracking**: Save past quiz attempts and track mastery over time.
+### 2. Quiz Studio & Pre-computed Explanations
+- **Automated MCQ Generation**: Synthesize 5 to 50 structured practice questions from any PDF excerpt.
+- **Zero-Latency Explanations**: Explanations pre-computed upfront render instantly on clicking **"Explain"**.
+- **Score Tracking & Question Notes**: Save past quiz attempts, review incorrect questions, and auto-save personal study notes.
 
-### 3. AWS S3 Storage & Byte-Range Streaming
-- **Zero-Memory PDF Streaming**: Authenticated byte-range requests stream heavy PDFs directly from AWS S3 without memory bottlenecks.
+### 3. System Telemetry & Diagnostic Engine
+- **Live Health Diagnostics**: Test API roundtrip ping latency in milliseconds (`ms`).
+- **Vector & RAG Specs**: Monitor active FastEmbed chunks (`BAAI/bge-small-en-v1.5` · 384-dim) and MongoDB Atlas `$vectorSearch` status.
+- **Storage Metrics**: View real-time S3 storage volume and HTTP 206 byte-range streaming state.
+
+### 4. AWS S3 Storage & Byte-Range Streaming
+- **Zero-Memory PDF Streaming**: Authenticated byte-range requests stream heavy PDFs directly from AWS S3 without server RAM bottlenecks.
 - **Terraform Infrastructure**: Fully reproducible IaC modules (`infra/terraform/`) for AWS S3 bucket provisioning, SSE-AES256 encryption, and lifecycle management.
 
-### 4. Workspace Access & Security
+### 5. Workspace Security & Account Profile
+- **Account Settings Modal**: Edit display name with live state sync, view role badges, and inspect workspace domain.
 - **Role-Based Access Control**: Manage team members, toggle active status, and send email invite tokens.
-- **Session Protection**: Custom confirmation dialogs and OTP authentication flows.
 
 ---
 
@@ -58,9 +65,11 @@ graph TD
     Client[React 19 Frontend] -->|JWT Auth / REST| API[FastAPI Backend]
     API -->|Metadata / Users / Quizzes| DB[(MongoDB Atlas)]
     API -->|Byte-Range PDF Stream| S3[AWS S3 Storage]
-    API -->|Vector Indexing & Retrieval| RAG[LangChain RAG Engine]
-    RAG -->|Prompt Context| Groq[Groq AI Inference]
-    Groq -->|Citations & Structured Quizzes| API
+    API -->|Local Vector Ingestion| FastEmbed[FastEmbed BGE-small-en]
+    FastEmbed -->|384-dim Embeddings| DB
+    API -->|Prompt Context| Groq[Groq AI Inference]
+    Groq -->|Citations & Pre-computed MCQs| API
+    Client -->|Live API Ping & Diagnostics| Health[/health Telemetry Endpoint]
 ```
 
 ---
