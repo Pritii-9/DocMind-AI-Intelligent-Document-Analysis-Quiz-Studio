@@ -1,4 +1,4 @@
-# DocStream — AWS S3 Terraform Infrastructure
+# DocMind AI — AWS S3 Terraform Infrastructure
 
 This directory contains production-ready Infrastructure as Code (IaC) written in **Terraform** for provisioning and managing AWS S3 storage for PDF documents and byte-range streaming.
 

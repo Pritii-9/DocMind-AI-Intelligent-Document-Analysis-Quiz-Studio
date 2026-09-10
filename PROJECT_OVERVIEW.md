@@ -40,6 +40,7 @@ A full-stack, enterprise-grade document intelligence and interactive assessment 
 | POST | `/auth/forgot-password` | Send reset code |
 | POST | `/auth/reset-password` | Update password |
 | GET  | `/auth/me` | Current user info |
+| PATCH| `/auth/update-profile` | Update user display name |
 | GET  | `/auth/users` | List workspace members (admin) |
 | POST | `/auth/invite-member` | Invite via email (admin) |
 | POST | `/auth/verify-invite` | Activate invited account |
@@ -53,6 +54,10 @@ A full-stack, enterprise-grade document intelligence and interactive assessment 
 | DELETE | `/pdf/delete/{id}` | Delete PDF from S3 + DB |
 | POST | `/ai/ingest/{doc_id}` | Index PDF for RAG |
 | POST | `/ai/chat` | LangChain RAG Q&A |
+| POST | `/quiz/generate` | Generate MCQs with pre-computed explanations |
+| GET  | `/quiz/list` | List practice quiz sets |
+| POST | `/quiz/{id}/score` | Save quiz score attempt |
+| PATCH| `/quiz/{id}/note` | Save question study note |
 | GET  | `/health` | Health check |
 
 ---
