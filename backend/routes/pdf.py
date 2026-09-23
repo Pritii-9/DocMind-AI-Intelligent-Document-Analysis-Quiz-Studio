@@ -69,6 +69,8 @@ def _serialize_doc(doc: dict) -> dict:
         "uploaded_by_name": doc.get("uploaded_by_name"),
         "ai_index_status": doc.get("ai_index_status", "pending"),
         "ai_chunk_count": int(doc.get("ai_chunk_count") or 0),
+        "ai_category": doc.get("ai_category", "General Document"),
+        "ai_tags": doc.get("ai_tags", []),
     }
 
 

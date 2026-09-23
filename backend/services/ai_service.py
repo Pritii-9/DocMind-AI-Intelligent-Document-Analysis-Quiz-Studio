@@ -141,7 +141,7 @@ def search_chunks(
                 "limit": limit,
                 "filter": q,
             }},
-            {"$project": {"text": 1, "chunk_index": 1, "document_key": 1, "score": {"$meta": "vectorSearchScore"}}},
+            {"$project": {"text": 1, "chunk_index": 1, "document_key": 1, "filename": 1, "document_id": 1, "score": {"$meta": "vectorSearchScore"}}},
         ]
         results = list(db.embeddings.aggregate(pipeline))
         if results:
@@ -150,9 +150,68 @@ def search_chunks(
         pass
 
     # Local cosine fallback
-    candidates = list(db.embeddings.find(q, {"text": 1, "embedding": 1, "chunk_index": 1, "document_key": 1}))
+    candidates = list(db.embeddings.find(q, {"text": 1, "embedding": 1, "chunk_index": 1, "document_key": 1, "filename": 1, "document_id": 1}))
     scored = sorted(candidates, key=lambda c: _cosine(query_vector, c.get("embedding") or []), reverse=True)
-    return [{"text": c["text"], "chunk_index": c["chunk_index"], "document_key": c.get("document_key"), "score": _cosine(query_vector, c.get("embedding") or [])} for c in scored[:limit]]
+    return [
+        {
+            "text": c["text"],
+            "chunk_index": c["chunk_index"],
+            "document_key": c.get("document_key"),
+            "filename": c.get("filename"),
+            "document_id": str(c.get("document_id")) if c.get("document_id") else None,
+            "score": _cosine(query_vector, c.get("embedding") or []),
+        }
+        for c in scored[:limit]
+    ]
+
+
+# ── Text Classification ──────────────────────────────────────────────────────
+
+def classify_document_text(text: str) -> dict:
+    """Classify extracted PDF text into category and extract topic tags using ML/LLM."""
+    if not text:
+        return {"category": "General Document", "tags": ["General"]}
+
+    sample_text = text[:3000]
+    lower = sample_text.lower()
+    fallback_cat = "General Document"
+    fallback_tags = ["General"]
+
+    if any(k in lower for k in ["invoice", "receipt", "total amount", "tax invoice", "billing", "bill to", "subtotal"]):
+        fallback_cat = "Financial Invoice"
+        fallback_tags = ["Invoice", "Finance", "Billing"]
+    elif any(k in lower for k in ["agreement", "contract", "terms and conditions", "party", "governing law", "clause", "nda"]):
+        fallback_cat = "Legal Contract"
+        fallback_tags = ["Legal", "Contract", "Agreement"]
+    elif any(k in lower for k in ["abstract", "introduction", "references", "ieee", "doi:", "figure 1", "methodology", "arxiv"]):
+        fallback_cat = "Academic Paper"
+        fallback_tags = ["Academic", "Research", "Paper"]
+    elif any(k in lower for k in ["architecture", "specification", "api", "database", "endpoint", "system", "requirements"]):
+        fallback_cat = "Technical Spec"
+        fallback_tags = ["Technical", "Spec", "Documentation"]
+
+    try:
+        raw_res = _chat([
+            {"role": "system", "content": (
+                "You are an AI document classifier. Analyze the provided excerpt of a document and output JSON with two keys:\n"
+                "- \"category\": One of [\"Financial Invoice\", \"Legal Contract\", \"Technical Spec\", \"Academic Paper\", \"General Document\"]\n"
+                "- \"tags\": Array of 2 to 4 short descriptive tags (e.g. [\"Finance\", \"Tax\"])\n"
+                "Output ONLY valid JSON."
+            )},
+            {"role": "user", "content": f"Document excerpt:\n{sample_text}"}
+        ], temperature=0.0)
+
+        import json
+        match = re.search(r"\{.*\}", raw_res, re.DOTALL)
+        if match:
+            parsed = json.loads(match.group(0))
+            cat = parsed.get("category", fallback_cat)
+            tags = parsed.get("tags", fallback_tags)
+            return {"category": cat, "tags": tags if isinstance(tags, list) else fallback_tags}
+    except Exception as e:
+        print(f"[CLASSIFY WARN] LLM classification fallback used: {e}")
+
+    return {"category": fallback_cat, "tags": fallback_tags}
 
 
 # ── Ingest ────────────────────────────────────────────────────────────────────
@@ -171,6 +230,7 @@ def ingest_document(workspace_owner: str, document_id: str) -> dict:
 
         chunks = _chunk_text(text)
         vectors = embed_texts([c["text"] for c in chunks])
+        classification = classify_document_text(text)
 
         db.embeddings.delete_many({"workspace_owner": workspace_owner, "document_id": doc["_id"]})
         now = datetime.now(timezone.utc)
@@ -193,9 +253,20 @@ def ingest_document(workspace_owner: str, document_id: str) -> dict:
 
         db.pdfs.update_one(
             {"_id": doc["_id"]},
-            {"$set": {"ai_index_status": "ready", "ai_chunk_count": len(records), "ai_indexed_at": now}},
+            {"$set": {
+                "ai_index_status": "ready",
+                "ai_chunk_count": len(records),
+                "ai_category": classification.get("category", "General Document"),
+                "ai_tags": classification.get("tags", []),
+                "ai_indexed_at": now,
+            }},
         )
-        return {"document_id": document_id, "chunk_count": len(records)}
+        return {
+            "document_id": document_id,
+            "chunk_count": len(records),
+            "category": classification.get("category"),
+            "tags": classification.get("tags"),
+        }
     except Exception as e:
         db.pdfs.update_one({"_id": doc["_id"]}, {"$set": {"ai_index_status": "failed", "ai_error": str(e)}})
         raise

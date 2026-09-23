@@ -92,6 +92,88 @@ def chat(body: ChatIn, user: dict = Depends(get_current_user)):
     }
 
 
+class SemanticSearchIn(BaseModel):
+    query: str
+    limit: int = 5
+    document_id: str | None = None
+
+
+@router.post("/classify/{document_id}")
+def classify_doc(document_id: str, user: dict = Depends(get_current_user)):
+    if not ObjectId.is_valid(document_id):
+        raise HTTPException(400, "Invalid document id")
+    owner = _workspace_owner(user)
+    db = get_db()
+    doc = db.pdfs.find_one({"_id": ObjectId(document_id), "workspace_owner": owner})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    from services.ai_service import _extract_text, classify_document_text
+    try:
+        text = _extract_text(doc["key"])
+        classification = classify_document_text(text)
+        db.pdfs.update_one(
+            {"_id": doc["_id"]},
+            {"$set": {
+                "ai_category": classification.get("category", "General Document"),
+                "ai_tags": classification.get("tags", []),
+            }},
+        )
+        return {
+            "document_id": document_id,
+            "category": classification.get("category"),
+            "tags": classification.get("tags"),
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.post("/semantic-search")
+def semantic_search(body: SemanticSearchIn, user: dict = Depends(get_current_user)):
+    q = (body.query or "").strip()
+    if not q:
+        raise HTTPException(400, "query parameter is required")
+
+    owner = _workspace_owner(user)
+    db = get_db()
+    document_key = None
+    if body.document_id:
+        if not ObjectId.is_valid(body.document_id):
+            raise HTTPException(400, "Invalid document ID")
+        doc = db.pdfs.find_one({"_id": ObjectId(body.document_id), "workspace_owner": owner})
+        if doc:
+            document_key = doc.get("key")
+
+    query_vector = embed_texts([q])[0]
+    matches = search_chunks(owner, query_vector, limit=max(1, min(body.limit, 20)), document_key=document_key)
+
+    doc_keys = list(set(m.get("document_key") for m in matches if m.get("document_key")))
+    docs = {d["key"]: d for d in db.pdfs.find({"workspace_owner": owner, "key": {"$in": doc_keys}})}
+
+    results = []
+    for m in matches:
+        d = docs.get(m.get("document_key")) or {}
+        score = float(m.get("score") or 0.0)
+        similarity_pct = round(max(0.0, min(score * 100.0 if score <= 1.0 else score, 100.0)), 1)
+        results.append({
+            "chunk_index": m.get("chunk_index"),
+            "score": round(score, 4),
+            "similarity_percent": similarity_pct,
+            "text": m.get("text", ""),
+            "document_key": m.get("document_key"),
+            "document_id": str(d.get("_id")) if d.get("_id") else m.get("document_id"),
+            "filename": d.get("filename") or m.get("filename") or "Document",
+            "category": d.get("ai_category", "General Document"),
+            "tags": d.get("ai_tags", []),
+        })
+
+    return {
+        "query": q,
+        "total_matches": len(results),
+        "results": results,
+    }
+
+
 @router.get("/history")
 def chat_history(user: dict = Depends(get_current_user)):
     owner = _workspace_owner(user)
