@@ -1,5 +1,4 @@
 """AI router — ingest PDF, chat with PDF."""
-from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from datetime import datetime, timezone
@@ -33,7 +32,7 @@ class ChatIn(BaseModel):
 
 @router.post("/ingest/{document_id}")
 def ingest(document_id: str, user: dict = Depends(get_current_user)):
-    if not ObjectId.is_valid(document_id):
+    if not document_id or not document_id.strip():
         raise HTTPException(400, "Invalid document id")
     try:
         result = maybe_ingest(_workspace_owner(user), document_id)
@@ -58,9 +57,9 @@ def chat(body: ChatIn, user: dict = Depends(get_current_user)):
     document_key = None
     target_id = body.target_doc_id
     if target_id:
-        if not ObjectId.is_valid(target_id):
+        if not target_id.strip():
             raise HTTPException(400, "Invalid document ID")
-        doc = db.pdfs.find_one({"_id": ObjectId(target_id), "workspace_owner": owner})
+        doc = db.pdfs.find_one({"_id": target_id, "workspace_owner": owner})
         if not doc:
             raise HTTPException(404, "Document not found")
         # Auto-ingest if needed
@@ -100,11 +99,11 @@ class SemanticSearchIn(BaseModel):
 
 @router.post("/classify/{document_id}")
 def classify_doc(document_id: str, user: dict = Depends(get_current_user)):
-    if not ObjectId.is_valid(document_id):
+    if not document_id or not document_id.strip():
         raise HTTPException(400, "Invalid document id")
     owner = _workspace_owner(user)
     db = get_db()
-    doc = db.pdfs.find_one({"_id": ObjectId(document_id), "workspace_owner": owner})
+    doc = db.pdfs.find_one({"_id": document_id, "workspace_owner": owner})
     if not doc:
         raise HTTPException(404, "Document not found")
 
@@ -138,9 +137,9 @@ def semantic_search(body: SemanticSearchIn, user: dict = Depends(get_current_use
     db = get_db()
     document_key = None
     if body.document_id:
-        if not ObjectId.is_valid(body.document_id):
+        if not body.document_id.strip():
             raise HTTPException(400, "Invalid document ID")
-        doc = db.pdfs.find_one({"_id": ObjectId(body.document_id), "workspace_owner": owner})
+        doc = db.pdfs.find_one({"_id": body.document_id, "workspace_owner": owner})
         if doc:
             document_key = doc.get("key")
 
@@ -180,7 +179,6 @@ def chat_history(user: dict = Depends(get_current_user)):
     records = list(
         get_db().chat_history.find(
             {"workspace_owner": owner},
-            {"message": 1, "answer": 1, "document_id": 1, "created_at": 1},
         ).sort("created_at", 1).limit(100)
     )
     return [

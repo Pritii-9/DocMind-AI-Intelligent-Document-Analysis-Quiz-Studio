@@ -6,12 +6,8 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "dev-secret-change-me"
     JWT_ACCESS_MINUTES: int = 120
 
-    # MongoDB
-    MONGO_URI: str = "mongodb://localhost:27017/"
-    MONGO_DB_NAME: str = "pdf_stream"
-    MONGO_SERVER_SELECTION_TIMEOUT_MS: int = 5000
-    MONGO_VECTOR_INDEX_NAME: str = "embeddings_vector_index"
-    MONGO_VECTOR_PATH: str = "embedding"
+    # PostgreSQL Database
+    DATABASE_URL: str = "postgresql://neondb_owner:npg_08WEzhiNACRI@ep-morning-leaf-b412hgdr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require"
 
     # AWS S3
     AWS_REGION: str = "ap-south-1"

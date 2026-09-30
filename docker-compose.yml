@@ -1,23 +1,6 @@
 version: "3.8"
 
 services:
-  # ── MongoDB Database Container ──────────────────────────────────────────────
-  mongodb:
-    image: mongo:7.0
-    container_name: pdf_stream_mongo
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - pdf_stream_net
-
   # ── FastAPI Backend Service ──────────────────────────────────────────────────
   backend:
     build:
@@ -28,7 +11,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/docmind
+      - DATABASE_URL=${DATABASE_URL:-postgresql://neondb_owner:npg_08WEzhiNACRI@ep-morning-leaf-b412hgdr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require}
       - JWT_SECRET=${JWT_SECRET:-production-docmind-jwt-secret-key-32-chars-min!}
       - JWT_ACCESS_MINUTES=1440
       - CORS_ORIGINS=http://localhost:5173,http://localhost:80
@@ -41,9 +24,6 @@ services:
       - AWS_BUCKET_NAME=${AWS_BUCKET_NAME:-""}
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - GROQ_API_KEY=${GROQ_API_KEY:-""}
-    depends_on:
-      mongodb:
-        condition: service_healthy
     networks:
       - pdf_stream_net
 
@@ -66,7 +46,3 @@ services:
 networks:
   pdf_stream_net:
     driver: bridge
-
-volumes:
-  mongo_data:
-    driver: local

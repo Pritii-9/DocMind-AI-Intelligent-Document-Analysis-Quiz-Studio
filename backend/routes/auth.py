@@ -6,7 +6,6 @@ import smtplib
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 
-from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 import bcrypt
 from pydantic import BaseModel, EmailStr
@@ -342,13 +341,13 @@ def verify_invite(body: VerifyInviteIn):
 
 @router.post("/users/{user_id}/status")
 def toggle_user_status(user_id: str, admin: dict = Depends(require_admin)):
-    if not ObjectId.is_valid(user_id):
+    if not user_id or not user_id.strip():
         raise HTTPException(400, "Invalid user id")
     db = get_db()
     workspace = admin.get("workspace_owner") or admin["sub"]
-    user = db.users.find_one({"_id": ObjectId(user_id), "workspace_owner": workspace})
+    user = db.users.find_one({"_id": user_id, "workspace_owner": workspace})
     if not user:
         raise HTTPException(404, "User not found in your workspace")
     new_status = not user.get("is_active", True)
-    db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
+    db.users.update_one({"_id": user_id}, {"$set": {"is_active": new_status}})
     return {"msg": f"User {'activated' if new_status else 'deactivated'}"}

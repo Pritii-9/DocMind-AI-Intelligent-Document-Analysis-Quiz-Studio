@@ -7,10 +7,9 @@ os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pymongo.errors import PyMongoError
 
 from config import settings
-from database import get_mongo_client
+from database import get_db
 from routes.auth import router as auth_router
 from routes.pdf import router as pdf_router
 from routes.ai import router as ai_router
@@ -19,7 +18,7 @@ from routes.quiz import router as quiz_router
 app = FastAPI(
     title="DocMind AI Enterprise API",
     version="2.0.0",
-    description="Enterprise Neural Document Intelligence & Assessment Platform with LangChain RAG & Groq Quiz Studio",
+    description="Enterprise Neural Document Intelligence Platform with LangChain RAG & Groq Quiz Studio on Neon PostgreSQL",
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
@@ -45,9 +44,9 @@ app.include_router(quiz_router)
 @app.get("/health", tags=["health"])
 def health():
     try:
-        get_mongo_client().admin.command("ping")
+        get_db().ping()
         db_status = "connected"
-    except PyMongoError as e:
+    except Exception as e:
         db_status = f"unavailable: {e.__class__.__name__}"
     return {"status": "ok", "database": db_status, "version": "2.0.0"}
 

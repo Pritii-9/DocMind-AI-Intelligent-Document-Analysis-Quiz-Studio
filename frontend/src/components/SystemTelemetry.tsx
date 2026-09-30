@@ -88,7 +88,7 @@ export default function SystemTelemetry() {
     {
       label: "Vector Chunks",
       value: `${stats.totalChunks} Chunks`,
-      sub: "Stored in MongoDB Atlas",
+      sub: "Stored in Neon PostgreSQL",
       icon: Cpu, iconCls: "text-violet-600",
       subCls: "text-slate-500", subIcon: null,
     },
@@ -112,7 +112,7 @@ export default function SystemTelemetry() {
   const ragRows = [
     ["Embedding Transformer Model", "BAAI/bge-small-en-v1.5", "text-slate-900"],
     ["Vector Dimensions",           "384 Dimensions",          "text-slate-900"],
-    ["Similarity Search Index",     "MongoDB Atlas $vectorSearch", "text-green-700"],
+    ["Similarity Search Index",     "Neon PostgreSQL pgvector", "text-green-700"],
     ["Fallback Engine",             "Cosine Similarity",        "text-slate-900"],
   ];
   const cloudRows = [

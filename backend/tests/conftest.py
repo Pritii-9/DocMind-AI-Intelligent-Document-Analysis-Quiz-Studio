@@ -1,18 +1,19 @@
 """
 conftest.py — shared fixtures for all backend tests.
-Uses FastAPI TestClient with MongoDB mocked via monkeypatch.
+Uses FastAPI TestClient with database mocked via monkeypatch.
 No real DB or SMTP connections are made during tests.
 """
 import os
 import sys
 import pytest
+from unittest.mock import MagicMock
 
 # ── Make backend root importable ─────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Patch env before importing app so Settings validation passes
 os.environ.setdefault("JWT_SECRET",       "test-secret-key-32-chars-minimum!!")
-os.environ.setdefault("MONGO_URI",        "mongodb://localhost:27017/test_docmind")
+os.environ.setdefault("DATABASE_URL",     "postgresql://neondb_owner:npg_08WEzhiNACRI@ep-morning-leaf-b412hgdr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require")
 os.environ.setdefault("AWS_ACCESS_KEY",   "test")
 os.environ.setdefault("AWS_SECRET_KEY",   "test")
 os.environ.setdefault("AWS_BUCKET_NAME",  "test-bucket")
@@ -25,16 +26,18 @@ os.environ.setdefault("MAIL_PASSWORD",    "mail-pass")
 os.environ.setdefault("CORS_ORIGINS",     "http://localhost:5173")
 
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
 
 
 @pytest.fixture(scope="function")
 def mock_db(monkeypatch):
-    """In-memory fake MongoDB database backed by plain dicts."""
+    """In-memory fake database mock."""
     db = MagicMock()
     import database
     monkeypatch.setattr(database, "get_db", lambda: db)
     monkeypatch.setattr("routes.auth.get_db", lambda: db)
+    monkeypatch.setattr("routes.pdf.get_db", lambda: db)
+    monkeypatch.setattr("routes.ai.get_db", lambda: db)
+    monkeypatch.setattr("routes.quiz.get_db", lambda: db)
     return db
 
 

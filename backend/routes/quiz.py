@@ -3,7 +3,6 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -54,7 +53,6 @@ Purpose: {purpose}
 
 def _generate_mcqs(text: str, count: int = 10, topic: str = "", purpose: str = "") -> dict:
     """Call Groq to generate MCQs from text. Returns parsed dict."""
-    # Use first 6000 chars to stay within context limits
     excerpt = text[:6000].strip()
     prompt = QUIZ_PROMPT.format(
         n=count,
@@ -71,7 +69,6 @@ def _generate_mcqs(text: str, count: int = 10, topic: str = "", purpose: str = "
         temperature=0.4,
     )
 
-    # Strip any accidental markdown fences
     raw = raw.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
@@ -86,7 +83,7 @@ def _generate_mcqs(text: str, count: int = 10, topic: str = "", purpose: str = "
 
 class GenerateQuizIn(BaseModel):
     doc_id: str
-    count: int = 10  # number of MCQs
+    count: int = 10
     topic: str | None = None
     purpose: str | None = None
 
@@ -114,7 +111,7 @@ class FeedbackIn(BaseModel):
 
 @router.post("/generate")
 def generate_quiz(body: GenerateQuizIn, user: dict = Depends(get_current_user)):
-    if not ObjectId.is_valid(body.doc_id):
+    if not body.doc_id or not body.doc_id.strip():
         raise HTTPException(400, "Invalid document id")
     if not (5 <= body.count <= 50):
         raise HTTPException(400, "count must be between 5 and 50")
@@ -122,11 +119,10 @@ def generate_quiz(body: GenerateQuizIn, user: dict = Depends(get_current_user)):
     owner = get_ws(user)
     db = get_db()
 
-    doc = db.pdfs.find_one({"_id": ObjectId(body.doc_id), "workspace_owner": owner})
+    doc = db.pdfs.find_one({"_id": body.doc_id, "workspace_owner": owner})
     if not doc:
         raise HTTPException(404, "Document not found")
 
-    # Extract text from S3 PDF
     try:
         text = _extract_text(doc["key"])
     except Exception as e:
@@ -135,7 +131,6 @@ def generate_quiz(body: GenerateQuizIn, user: dict = Depends(get_current_user)):
     if not text.strip():
         raise HTTPException(400, "PDF has no extractable text")
 
-    # Generate MCQs via Groq
     try:
         result = _generate_mcqs(
             text,
@@ -148,7 +143,6 @@ def generate_quiz(body: GenerateQuizIn, user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(500, f"Quiz generation failed: {e}")
 
-    # Add stable IDs and empty user_note to each question
     now = datetime.now(timezone.utc)
     questions = []
     for q in result.get("questions", []):
@@ -163,7 +157,7 @@ def generate_quiz(body: GenerateQuizIn, user: dict = Depends(get_current_user)):
 
     quiz_doc = {
         "workspace_owner": owner,
-        "document_id": ObjectId(body.doc_id),
+        "document_id": body.doc_id,
         "document_name": doc.get("filename", ""),
         "topic": result.get("topic", doc.get("filename", "Quiz")),
         "questions": questions,
@@ -193,7 +187,7 @@ def list_quizzes(user: dict = Depends(get_current_user)):
 
 @router.post("/{quiz_id}/score")
 def save_score(quiz_id: str, body: ScoreIn, user: dict = Depends(get_current_user)):
-    if not ObjectId.is_valid(quiz_id):
+    if not quiz_id or not quiz_id.strip():
         raise HTTPException(400, "Invalid quiz id")
     if body.total <= 0 or body.score < 0 or body.score > body.total:
         raise HTTPException(400, "Invalid score")
@@ -205,7 +199,7 @@ def save_score(quiz_id: str, body: ScoreIn, user: dict = Depends(get_current_use
         "taken_at": datetime.now(timezone.utc),
     }
     result = get_db().quizzes.update_one(
-        {"_id": ObjectId(quiz_id), "workspace_owner": get_ws(user)},
+        {"_id": quiz_id, "workspace_owner": get_ws(user)},
         {"$set": {"last_score": attempt}, "$push": {"attempts": attempt}},
     )
     if result.matched_count == 0:
@@ -248,10 +242,10 @@ def question_feedback(body: FeedbackIn, user: dict = Depends(get_current_user)):
 
 @router.get("/{quiz_id}")
 def get_quiz(quiz_id: str, user: dict = Depends(get_current_user)):
-    if not ObjectId.is_valid(quiz_id):
+    if not quiz_id or not quiz_id.strip():
         raise HTTPException(400, "Invalid quiz id")
     db = get_db()
-    doc = db.quizzes.find_one({"_id": ObjectId(quiz_id), "workspace_owner": get_ws(user)})
+    doc = db.quizzes.find_one({"_id": quiz_id, "workspace_owner": get_ws(user)})
     if not doc:
         raise HTTPException(404, "Quiz not found")
     doc["_id"] = str(doc["_id"])
@@ -263,11 +257,11 @@ def get_quiz(quiz_id: str, user: dict = Depends(get_current_user)):
 
 @router.patch("/{quiz_id}/note")
 def save_note(quiz_id: str, body: SaveNoteIn, user: dict = Depends(get_current_user)):
-    if not ObjectId.is_valid(quiz_id):
+    if not quiz_id or not quiz_id.strip():
         raise HTTPException(400, "Invalid quiz id")
     db = get_db()
     result = db.quizzes.update_one(
-        {"_id": ObjectId(quiz_id), "workspace_owner": get_ws(user), "questions.id": body.question_id},
+        {"_id": quiz_id, "workspace_owner": get_ws(user), "questions.id": body.question_id},
         {"$set": {"questions.$.user_note": body.note}},
     )
     if result.matched_count == 0:
@@ -277,8 +271,8 @@ def save_note(quiz_id: str, body: SaveNoteIn, user: dict = Depends(get_current_u
 
 @router.delete("/{quiz_id}")
 def delete_quiz(quiz_id: str, user: dict = Depends(get_current_user)):
-    if not ObjectId.is_valid(quiz_id):
+    if not quiz_id or not quiz_id.strip():
         raise HTTPException(400, "Invalid quiz id")
     db = get_db()
-    db.quizzes.delete_one({"_id": ObjectId(quiz_id), "workspace_owner": get_ws(user)})
+    db.quizzes.delete_one({"_id": quiz_id, "workspace_owner": get_ws(user)})
     return {"msg": "Quiz deleted"}

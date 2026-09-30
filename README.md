@@ -8,7 +8,7 @@
 [![LangChain](https://img.shields.io/badge/LangChain_RAG-121212?style=for-the-badge&logo=chainlink&logoColor=white)](https://python.langchain.com/)
 [![Groq LLM](https://img.shields.io/badge/Groq_AI-f97316?style=for-the-badge)](https://groq.com/)
 [![AWS S3](https://img.shields.io/badge/AWS_S3_Terraform-569A31?style=for-the-badge&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
-[![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![PostgreSQL](https://img.shields.io/badge/Neon_PostgreSQL_pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
 
 ---
 
@@ -45,7 +45,7 @@ Traditional document workflows require manual Ctrl+F searches, disjointed note-t
 
 ### 3. System Telemetry & Diagnostic Engine
 - **Live Health Diagnostics**: Test API roundtrip ping latency in milliseconds (`ms`).
-- **Vector & RAG Specs**: Monitor active FastEmbed chunks (`BAAI/bge-small-en-v1.5` · 384-dim) and MongoDB Atlas `$vectorSearch` status.
+- **Vector & RAG Specs**: Monitor active FastEmbed chunks (`BAAI/bge-small-en-v1.5` · 384-dim) and Neon PostgreSQL `pgvector` search status.
 - **Storage Metrics**: View real-time S3 storage volume and HTTP 206 byte-range streaming state.
 
 ### 4. AWS S3 Storage & Byte-Range Streaming
@@ -63,10 +63,11 @@ Traditional document workflows require manual Ctrl+F searches, disjointed note-t
 ```mermaid
 graph TD
     Client[React 19 Frontend] -->|JWT Auth / REST| API[FastAPI Backend]
-    API -->|Metadata / Users / Quizzes| DB[(MongoDB Atlas)]
+    API -->|Metadata / Users / Quizzes| DB[(Neon PostgreSQL Database)]
     API -->|Byte-Range PDF Stream| S3[AWS S3 Storage]
     API -->|Local Vector Ingestion| FastEmbed[FastEmbed BGE-small-en]
     FastEmbed -->|384-dim Embeddings| DB
+    DB -->|pgvector Cosine Search| API
     API -->|Prompt Context| Groq[Groq AI Inference]
     Groq -->|Citations & Pre-computed MCQs| API
     Client -->|Live API Ping & Diagnostics| Health["/health Telemetry Endpoint"]
@@ -80,21 +81,21 @@ graph TD
 - Python 3.11+ / Poetry
 - Node.js 20+ / npm
 - Docker & Docker Compose (for containerized deployment)
-- MongoDB Atlas Cluster (or local Docker MongoDB)
+- Neon PostgreSQL Database (with `pgvector` extension)
 - AWS S3 Bucket & Groq API Key
 
 ---
 
 ### 🐳 Option A: Docker Deployment (Recommended)
 
-Run the full multi-container stack (MongoDB + FastAPI Backend + React/Nginx Frontend) with a single command:
+Run the container stack (FastAPI Backend + React/Nginx Frontend) connected to Neon PostgreSQL:
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/Pritii-9/pdf-streaming.git
 cd pdf-streaming
 
-# 2. Configure environment variables (optional)
+# 2. Configure environment variables
 cp backend/.env.example backend/.env
 
 # 3. Build and launch all services with Docker Compose
@@ -104,9 +105,8 @@ docker-compose up --build -d
 #### Running Services:
 - **Frontend App**: [http://localhost:5173](http://localhost:5173) (or `http://localhost:80`)
 - **FastAPI OpenAPI Specs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **MongoDB Instance**: `localhost:27017`
 
-To stop and remove containers:
+To stop containers:
 ```bash
 docker-compose down -v
 ```
@@ -133,13 +133,6 @@ npm run dev
 ```bash
 cd backend
 poetry run pytest -v
-```
-
-#### 4. Infrastructure Provisioning (Optional)
-```bash
-cd infra/terraform
-terraform init
-terraform apply -var-file="terraform.tfvars.example"
 ```
 
 ---

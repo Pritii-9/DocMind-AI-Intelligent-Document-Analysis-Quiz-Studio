@@ -1,4 +1,4 @@
-"""AI service — LangChain RAG (no LangGraph). Simple: embed → store → retrieve → answer."""
+"""AI service — LangChain RAG (no LangGraph). Simple: embed → store in pgvector → retrieve → answer."""
 import io
 import math
 import re
@@ -6,7 +6,6 @@ import threading
 from datetime import datetime, timezone
 from typing import Any
 
-from bson import ObjectId
 from pypdf import PdfReader
 
 from config import settings
@@ -47,7 +46,6 @@ def _chat(messages: list[dict], temperature: float = 0.1) -> str:
         "openai/gpt-oss-20b",
         "allam-2-7b",
     ]
-    # Remove duplicates while preserving order
     models_to_try = list(dict.fromkeys(candidate_models))
 
     lc_msgs = []
@@ -108,16 +106,7 @@ def _chunk_text(text: str) -> list[dict]:
     return chunks
 
 
-# ── Vector search (cosine fallback) ──────────────────────────────────────────
-
-def _cosine(a: list[float], b: list[float]) -> float:
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(x * x for x in b))
-    return dot / (na * nb) if na and nb else 0.0
-
+# ── Vector search (PostgreSQL pgvector) ──────────────────────────────────────
 
 def search_chunks(
     workspace_owner: str,
@@ -126,43 +115,13 @@ def search_chunks(
     document_key: str | None = None,
 ) -> list[dict]:
     db = get_db()
-    q: dict[str, Any] = {"workspace_owner": workspace_owner}
-    if document_key:
-        q["document_key"] = document_key
-
-    # Try MongoDB Atlas vector search first
+    # Perform native PostgreSQL pgvector cosine similarity search
     try:
-        pipeline = [
-            {"$vectorSearch": {
-                "index": settings.MONGO_VECTOR_INDEX_NAME,
-                "path": settings.MONGO_VECTOR_PATH,
-                "queryVector": query_vector,
-                "numCandidates": max(limit * 15, 30),
-                "limit": limit,
-                "filter": q,
-            }},
-            {"$project": {"text": 1, "chunk_index": 1, "document_key": 1, "filename": 1, "document_id": 1, "score": {"$meta": "vectorSearchScore"}}},
-        ]
-        results = list(db.embeddings.aggregate(pipeline))
-        if results:
-            return results
-    except Exception:
-        pass
-
-    # Local cosine fallback
-    candidates = list(db.embeddings.find(q, {"text": 1, "embedding": 1, "chunk_index": 1, "document_key": 1, "filename": 1, "document_id": 1}))
-    scored = sorted(candidates, key=lambda c: _cosine(query_vector, c.get("embedding") or []), reverse=True)
-    return [
-        {
-            "text": c["text"],
-            "chunk_index": c["chunk_index"],
-            "document_key": c.get("document_key"),
-            "filename": c.get("filename"),
-            "document_id": str(c.get("document_id")) if c.get("document_id") else None,
-            "score": _cosine(query_vector, c.get("embedding") or []),
-        }
-        for c in scored[:limit]
-    ]
+        return db.embeddings.pgvector_search(workspace_owner, query_vector, limit=limit, document_key=document_key)
+    except Exception as e:
+        print(f"[PGVECTOR SEARCH ERROR] {e}")
+        # Fallback to empty if search fails
+        return []
 
 
 # ── Text Classification ──────────────────────────────────────────────────────
@@ -218,7 +177,7 @@ def classify_document_text(text: str) -> dict:
 
 def ingest_document(workspace_owner: str, document_id: str) -> dict:
     db = get_db()
-    doc = db.pdfs.find_one({"_id": ObjectId(document_id), "workspace_owner": workspace_owner})
+    doc = db.pdfs.find_one({"_id": document_id, "workspace_owner": workspace_owner})
     if not doc:
         raise ValueError("Document not found")
 
@@ -282,7 +241,7 @@ def ingest_document_bg(workspace_owner: str, document_id: str):
 
 def maybe_ingest(workspace_owner: str, document_id: str) -> dict:
     db = get_db()
-    doc = db.pdfs.find_one({"_id": ObjectId(document_id), "workspace_owner": workspace_owner})
+    doc = db.pdfs.find_one({"_id": document_id, "workspace_owner": workspace_owner})
     if not doc:
         raise ValueError("Document not found")
     if doc.get("ai_index_status") == "ready" and db.embeddings.count_documents({"document_id": doc["_id"]}) > 0:

@@ -263,17 +263,16 @@ def stream_pdf(key: str, user: dict = Depends(get_current_user), request: Reques
 
 @router.delete("/delete/{doc_id}")
 def delete_pdf(doc_id: str, user: dict = Depends(get_current_user)):
-    from bson import ObjectId
-    if not ObjectId.is_valid(doc_id):
+    if not doc_id or not doc_id.strip():
         raise HTTPException(400, "Invalid document id")
     db = get_db()
-    doc = db.pdfs.find_one({"_id": ObjectId(doc_id), "workspace_owner": get_ws(user)})
+    doc = db.pdfs.find_one({"_id": doc_id, "workspace_owner": get_ws(user)})
     if not doc:
         raise HTTPException(404, "Document not found")
     try:
         get_s3().delete_object(Bucket=_bucket(), Key=doc["key"])
     except ClientError:
         pass
-    db.pdfs.delete_one({"_id": ObjectId(doc_id)})
-    db.embeddings.delete_many({"document_id": ObjectId(doc_id)})
+    db.pdfs.delete_one({"_id": doc_id})
+    db.embeddings.delete_many({"document_id": doc_id})
     return {"msg": "Document deleted"}

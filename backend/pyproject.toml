@@ -1,7 +1,7 @@
 [project]
 name = "pdf-stream-backend"
 version = "2.0.0"
-description = "Secure PDF streaming backend with FastAPI"
+description = "Secure PDF streaming backend with FastAPI and Neon PostgreSQL"
 authors = [
     {name = "Priti Jadhav", email = "pvjadhav2513@gmail.com"}
 ]
@@ -15,8 +15,9 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0,<4.0.0",
     "passlib[bcrypt]>=1.7.4,<2.0.0",
     "boto3>=1.42.51,<2.0.0",
-    "pymongo>=4.12,<5.0.0",
-    "dnspython>=2.6.0,<3.0.0",
+    "psycopg2-binary>=2.9.9,<3.0.0",
+    "pgvector>=0.2.5,<1.0.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
     "python-dotenv>=1.2.1,<2.0.0",
     "pypdf>=5.4.0,<6.0.0",
     "langchain>=0.3.0,<0.4.0",
