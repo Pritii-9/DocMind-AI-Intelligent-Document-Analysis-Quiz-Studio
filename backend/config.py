@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     # AI
     AI_AUTO_INGEST_UPLOADS: bool = True
 
+    # ── HireMind - Tech Hiring Agent ──────────────────────────────────────
+    # GitHub API token (optional — raises rate limit from 60 to 5000 req/hr)
+    GITHUB_TOKEN: str = ""
+
+    # Google Sheets integration (set both for real logging; omit to use mock mode)
+    SHEET_ID: str = ""
+    # GOOGLE_CRED_JSON can be a file path OR an inline JSON string of service account creds
+    GOOGLE_CRED_JSON: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"

@@ -14,11 +14,12 @@ from routes.auth import router as auth_router
 from routes.pdf import router as pdf_router
 from routes.ai import router as ai_router
 from routes.quiz import router as quiz_router
+from hire.routes import router as hire_router  # HireMind - Tech Hiring Agent
 
 app = FastAPI(
-    title="DocMind AI Enterprise API",
-    version="2.0.0",
-    description="Enterprise Neural Document Intelligence Platform with LangChain RAG & Groq Quiz Studio on Neon PostgreSQL",
+    title="DocMind AI + HireMind API",
+    version="3.0.0",
+    description="DocMind AI Enterprise (RAG/Quiz) + HireMind Tech Hiring Agent — powered by LangChain, Groq & pgvector",
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ app.include_router(auth_router)
 app.include_router(pdf_router)
 app.include_router(ai_router)
 app.include_router(quiz_router)
+app.include_router(hire_router)  # HireMind - Tech Hiring Agent
 
 
 @app.get("/health", tags=["health"])

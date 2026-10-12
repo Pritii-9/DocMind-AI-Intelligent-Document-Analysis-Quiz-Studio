@@ -1,92 +1,43 @@
-# DocMind AI
+# DocMind AI + HireMind
 
-A document intelligence workspace that combines an asynchronous RAG pipeline, local CPU embedding vectorization, and pre-computed quiz synthesis for PDF study and review.
+Two tools in one repo.
 
----
-
-## 🏗️ Architecture Flow
-
-```mermaid
-graph LR
-    A[PDF on AWS S3] -->|Byte-Range Stream| B[FastAPI Backend]
-    B -->|500-Word Chunking| C[FastEmbed bge-small]
-    C -->|384-dim Vectors| D[(PostgreSQL + pgvector)]
-    E[User Query] -->|Cosine Distance <=>| D
-    D -->|Top Context Chunks| F[Groq / Llama 3]
-    F -->|Answers with Citations| G[React Workspace]
-```
+**DocMind** — upload a PDF, chat with it, generate a quiz from it.  
+**HireMind** — paste a job description, upload a resume, get an AI screening score + GitHub stats + 3 custom interview questions.
 
 ---
 
-## 💡 Key Engineering Decisions
+## Stack
 
-- **Local CPU Embeddings (`FastEmbed`):** Uses `bge-small-en-v1.5` to generate 384-dimensional dense vectors on CPU. Eliminates external embedding API costs and network latency.
-- **Unified Vector Storage (`pgvector`):** Stores document chunks, relational metadata, and embeddings inside PostgreSQL. Eliminates dual-write sync issues across external vector databases.
-- **Native SQL Cosine Search:** Executes vector similarity queries using the `<=>` cosine distance operator with parameterized queries for sub-40ms context retrieval.
-- **Pre-computed Quiz Explanations:** Generates questions, options, and explanations in a single batch LLM request. Enables 0ms client-side answer verification without recurring LLM API calls.
-- **Memory-Safe PDF Streaming:** Ingests and streams documents using HTTP 206 byte-range requests directly from AWS S3, avoiding RAM bottlenecks when loading large files.
-
----
-
-## 🛠️ Tech Stack
-
-| Component | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Backend** | FastAPI (Python 3.11+) | Async REST API & OpenAPI schema |
-| **Database** | PostgreSQL + `pgvector` | Relational data & vector similarity search |
-| **Storage** | AWS S3 | Cloud PDF document storage |
-| **Embeddings** | FastEmbed (`bge-small-en-v1.5`) | Zero-cost local CPU text embedding |
-| **LLM Inference** | Groq (Llama 3) | Fast context grounding & quiz synthesis |
-| **Frontend** | React 19 + Tailwind CSS | Interactive reader & study workspace |
+- **Backend** — FastAPI, Python 3.11
+- **Database** — PostgreSQL + pgvector (Neon)
+- **Storage** — AWS S3
+- **Embeddings** — FastEmbed (`bge-small-en-v1.5`, runs on CPU, free)
+- **LLM** — Groq (Llama 3)
+- **Frontend** — React 19 + Tailwind CSS
 
 ---
 
-## 🚀 Getting Started
+## Running it
 
-### Prerequisites
-- Python 3.11+
-- Node.js 20+
-- PostgreSQL with `pgvector` enabled
-- AWS S3 bucket credentials & Groq API key
-
----
-
-### 1. Backend Setup
-
+**Backend**
 ```bash
 cd backend
-
-# Install dependencies
 pip install -r requirements.txt
-# (or if using poetry: poetry install)
-
-# Configure environment variables
-cp .env.example .env
-
-# Run FastAPI development server
+cp .env.example .env   # fill in your keys
 uvicorn main:app --reload --port 8000
 ```
-Backend API documentation available at: `http://localhost:8000/docs`
+API docs at `http://localhost:8000/docs`
 
----
-
-### 2. Frontend Setup
-
+**Frontend**
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start Vite development server
 npm run dev
 ```
-Frontend application running at: `http://localhost:5173`
+App at `http://localhost:5173`
 
----
-
-### 3. Run Backend Tests
-
+**Tests**
 ```bash
 cd backend
 pytest -v
@@ -94,19 +45,81 @@ pytest -v
 
 ---
 
-## 📁 Project Structure
+## Environment variables
+
+```env
+# Required
+DATABASE_URL=
+GROQ_API_KEY=
+AWS_ACCESS_KEY=
+AWS_SECRET_KEY=
+S3_BUCKET_NAME=
+JWT_SECRET=
+
+# HireMind (all optional)
+GITHUB_TOKEN=          # optional — raises GitHub API rate limit 60 → 5000/hr
+SHEET_ID=              # Google Sheet ID — omit to use mock logging
+GOOGLE_CRED_JSON=      # path to service account JSON, or the JSON string itself
+```
+
+---
+
+## Project structure
 
 ```
-├── backend/
-│   ├── main.py              # FastAPI application entrypoint
-│   ├── database.py          # PostgreSQL & pgvector connection handling
-│   ├── routes/
-│   │   ├── pdf.py           # S3 upload & document management
-│   │   ├── ai.py            # RAG search & chat endpoints
-│   │   ├── quiz.py          # Pre-computed MCQ generation & notes
-│   │   └── auth.py          # JWT authentication & user roles
-│   ├── services/
-│   │   └── ai_service.py    # Chunking, FastEmbed, & Groq LLM logic
-│   └── tests/               # Pytest unit & integration test suite
-└── frontend/                # React 19 SPA workspace
+backend/
+  main.py
+  config.py
+  routes/
+    auth.py      # JWT auth
+    pdf.py       # S3 upload, streaming
+    ai.py        # RAG chat
+    quiz.py      # MCQ generation
+  hire/
+    routes.py          # /api/hire/* endpoints
+    github_service.py  # GitHub API calls
+    llm_service.py     # Groq screening + question generation
+    sheets_service.py  # Google Sheets logging
+  services/
+    ai_service.py      # chunking, embeddings, vector search
+  tests/
+
+frontend/src/
+  pages/
+    Workspace.tsx
+    Hire.tsx      # HireMind UI
+  components/
+    Sidebar.tsx
+
+n8n/
+  hiremind_workflow.json   # importable n8n automation
 ```
+
+---
+
+## HireMind
+
+Startup hiring is messy — resumes come in over WhatsApp, there's no time to read them carefully, no one's writing custom interview questions. HireMind automates the first pass.
+
+**What it does:**
+
+1. Extracts text from the resume PDF
+2. Calls GitHub API — gets public repos, languages, last active date
+3. Sends everything to Groq Llama 3 — returns a score (0–100), reason, and shortlist flag
+4. Generates 3 interview questions grounded in the candidate's actual projects, not generic ones
+5. Logs the result to Google Sheets
+6. Via n8n: alerts on WhatsApp if the candidate is shortlisted
+
+**Endpoints:**
+
+`POST /api/hire/screen` — multipart form: `job_description`, `resume_file` (PDF), `github_username`
+
+`POST /api/hire/generate-questions` — JSON: `resume_text`, `jd`
+
+`POST /api/hire/log-to-sheets` — JSON: `name`, `score`, `github_data`, `questions`
+
+If `SHEET_ID` / `GOOGLE_CRED_JSON` aren't set, the log endpoint prints to console and returns `"status": "mocked"` — nothing breaks.
+
+**n8n workflow** — import `n8n/hiremind_workflow.json`. Nodes: Google Drive Trigger → screen → generate questions → log to Sheets → WhatsApp alert (mock node, swap in Twilio or 360dialog).
+
+**Frontend** — click **HireMind** in the sidebar. Fill in the JD, upload the resume, add a GitHub username. Hit Screen. You get a score card, GitHub stats, and the 3 questions on the same page.

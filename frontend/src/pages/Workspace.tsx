@@ -12,12 +12,14 @@ import Sidebar from "../components/Sidebar";
 import type { Tab } from "../components/Sidebar";
 import SignOutModal from "../components/SignOutModal";
 import ProfileModal from "../components/ProfileModal";
+import Hire from "./Hire";
 
 const TAB_TITLES: Record<Tab, string> = {
   dashboard: "Dashboard",
   library:   "Library",
   chat:      "Ask AI",
   quiz:      "Quizzes",
+  hire:      "HireMind — Tech Hiring Agent",
   team:      "Team",
   system:    "System Telemetry",
 };
@@ -90,6 +92,7 @@ export default function Workspace() {
           {tab === "library"   && <Library />}
           {tab === "chat"      && <AiChat />}
           {tab === "quiz"      && <QuizView />}
+          {tab === "hire"      && <Hire />}
           {tab === "team"      && <Team />}
           {tab === "system"    && <SystemTelemetry />}
         </div>

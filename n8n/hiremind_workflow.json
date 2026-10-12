@@ -1,0 +1,179 @@
+{
+  "name": "HireMind - Tech Hiring Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [{ "mode": "everyMinute" }]
+        },
+        "triggerOn": "specificFile",
+        "fileId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_DRIVE_FOLDER_ID",
+          "mode": "list",
+          "cachedResultName": "Resumes Folder"
+        }
+      },
+      "id": "node-1-google-drive-trigger",
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Watches a Google Drive folder for new PDF resumes. Replace 'YOUR_GOOGLE_DRIVE_FOLDER_ID' with your folder ID."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/hire/screen",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "job_description",
+              "value": "={{ $json.job_description || 'Senior Full-Stack Engineer with 3+ years React and Python experience, familiar with cloud deployments and REST APIs.' }}"
+            },
+            {
+              "name": "github_username",
+              "value": "={{ $json.github_username || '' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "node-2-screen-candidate",
+      "name": "Screen Candidate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "notes": "Calls POST /api/hire/screen with resume file + job description. Returns score, shortlist flag, skills_found, github_data."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/hire/generate-questions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"resume_text\": \"{{ $json.resume_text_preview }}\",\n  \"jd\": \"{{ $('Screen Candidate').item.json.candidate.job_description }}\"\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "node-3-generate-questions",
+      "name": "Generate Screening Questions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300],
+      "notes": "Calls POST /api/hire/generate-questions with resume text + JD. Returns 3 custom technical questions."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/hire/log-to-sheets",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $('Google Drive Trigger').item.json.name || 'Unknown Candidate' }}\",\n  \"score\": {{ $('Screen Candidate').item.json.screening.score }},\n  \"github_data\": {{ JSON.stringify($('Screen Candidate').item.json.github_data) }},\n  \"questions\": {{ JSON.stringify($json.questions.map(q => q.question)) }}\n}",
+        "options": {}
+      },
+      "id": "node-4-log-to-sheets",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300],
+      "notes": "Calls POST /api/hire/log-to-sheets to record candidate result. Works in mock mode if Sheets creds not configured."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "shortlist-check",
+              "leftValue": "={{ $('Screen Candidate').item.json.screening.shortlist }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ]
+        }
+      },
+      "id": "node-5-shortlist-check",
+      "name": "Shortlisted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 300],
+      "notes": "Only send WhatsApp alert if candidate is shortlisted (score >= 70)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock WhatsApp notification via n8n Code node\n// Replace this with the actual WhatsApp/Twilio/360dialog node\nconst screening = $('Screen Candidate').item.json.screening;\nconst github = $('Screen Candidate').item.json.github_data;\nconst questions = $('Generate Screening Questions').item.json.questions;\n\nconst message = [\n  `🎯 *HireMind Alert - New Shortlisted Candidate*`,\n  ``,\n  `📋 Score: ${screening.score}/100 (${screening.recommendation})`,\n  `✅ Skills: ${screening.skills_found.slice(0, 5).join(', ')}`,\n  `🐙 GitHub: ${github.profile_url || 'N/A'} (${github.public_repos || 0} repos)`,\n  `📊 Languages: ${(github.top_languages || []).join(', ')}`,\n  ``,\n  `❓ Screening Questions:`,\n  ...questions.map((q, i) => `${i+1}. ${q.question}`),\n  ``,\n  `💡 Reason: ${screening.reason}`,\n].join('\\n');\n\nconsole.log('[HireMind WhatsApp MOCK]\\n' + message);\n\nreturn [\n  {\n    json: {\n      whatsapp_status: 'mocked',\n      message_preview: message.substring(0, 200),\n      recipient: 'hiring-team@startup.com',\n      note: 'Replace this node with WhatsApp/Twilio node and set recipient number'\n    }\n  }\n];"
+      },
+      "id": "node-6-whatsapp-mock",
+      "name": "WhatsApp Alert (Mock)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 200],
+      "notes": "MOCK WhatsApp node. Replace with: Twilio, 360dialog, or WhatsApp Business API node. Message includes score, skills, and generated questions."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Candidate not shortlisted — log for record keeping\nconst screening = $('Screen Candidate').item.json.screening;\nconsole.log(`[HireMind] Candidate not shortlisted. Score: ${screening.score}. Reason: ${screening.reason}`);\nreturn [{ json: { status: 'not_shortlisted', score: screening.score } }];"
+      },
+      "id": "node-7-not-shortlisted",
+      "name": "Not Shortlisted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 400],
+      "notes": "Handles candidates who scored below 70. Logs for record keeping."
+    }
+  ],
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [[{ "node": "Screen Candidate", "type": "main", "index": 0 }]]
+    },
+    "Screen Candidate": {
+      "main": [[{ "node": "Generate Screening Questions", "type": "main", "index": 0 }]]
+    },
+    "Generate Screening Questions": {
+      "main": [[{ "node": "Log to Google Sheets", "type": "main", "index": 0 }]]
+    },
+    "Log to Google Sheets": {
+      "main": [[{ "node": "Shortlisted?", "type": "main", "index": 0 }]]
+    },
+    "Shortlisted?": {
+      "main": [
+        [{ "node": "WhatsApp Alert (Mock)", "type": "main", "index": 0 }],
+        [{ "node": "Not Shortlisted", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["HireMind", "Hiring", "Automation"],
+  "triggerCount": 1,
+  "updatedAt": "2026-10-12T00:00:00.000Z",
+  "versionId": "hiremind-v1",
+  "_comment": {
+    "workflow_description": "HireMind n8n Workflow: Google Drive Trigger -> Screen Candidate -> Generate Questions -> Log to Sheets -> WhatsApp Alert",
+    "setup_instructions": [
+      "1. Import this JSON into n8n via Workflows > Import from File",
+      "2. Set your Google Drive folder ID in the trigger node",
+      "3. Update the backend URL (localhost:8000) to your deployed URL",
+      "4. Set SHEET_ID and GOOGLE_CRED_JSON in your backend .env for real Sheets logging",
+      "5. Replace the WhatsApp Mock node with a real Twilio/360dialog node",
+      "6. Add job_description as a static value or pull it from a Sheets row"
+    ],
+    "api_endpoints": {
+      "screen": "POST /api/hire/screen (multipart: job_description, resume_file, github_username)",
+      "questions": "POST /api/hire/generate-questions (json: resume_text, jd)",
+      "log_sheets": "POST /api/hire/log-to-sheets (json: name, score, github_data, questions)"
+    }
+  }
+}

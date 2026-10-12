@@ -37,3 +37,11 @@ fastembed>=0.8.0,<0.9.0
 # Email
 aiosmtplib>=3.0.0,<4.0.0
 emails>=0.6.0
+
+# ── HireMind - Tech Hiring Agent ─────────────────────────────────────────────
+# HTTP client for GitHub API calls
+httpx>=0.27.0,<1.0.0
+
+# Google Sheets integration (optional — mock mode works without these)
+gspread>=6.0.0,<7.0.0
+google-auth>=2.28.0,<3.0.0

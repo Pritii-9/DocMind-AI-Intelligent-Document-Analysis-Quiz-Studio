@@ -1,13 +1,14 @@
-import { LayoutDashboard, FileText, Bot, BookOpen, Users, LogOut, ChevronLeft, ChevronRight, Cpu } from "lucide-react";
+import { LayoutDashboard, FileText, Bot, BookOpen, Users, LogOut, ChevronLeft, ChevronRight, Cpu, BriefcaseBusiness } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-export type Tab = "dashboard" | "library" | "chat" | "team" | "quiz" | "system";
+export type Tab = "dashboard" | "library" | "chat" | "team" | "quiz" | "system" | "hire";
 
 const NAV: { id: Tab; label: string; icon: any }[] = [
   { id: "dashboard", label: "Dashboard",  icon: LayoutDashboard },
   { id: "library",   label: "Library",    icon: FileText },
   { id: "chat",      label: "Ask AI",     icon: Bot },
   { id: "quiz",      label: "Quizzes",    icon: BookOpen },
+  { id: "hire",      label: "HireMind",   icon: BriefcaseBusiness },
   { id: "team",      label: "Team",       icon: Users },
   { id: "system",    label: "Telemetry",  icon: Cpu },
 ];
