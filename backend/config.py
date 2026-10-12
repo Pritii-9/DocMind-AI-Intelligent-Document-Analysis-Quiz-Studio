@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     JWT_ACCESS_MINUTES: int = 120
 
     # PostgreSQL Database
-    DATABASE_URL: str = "postgresql://neondb_owner:npg_08WEzhiNACRI@ep-morning-leaf-b412hgdr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require"
+    DATABASE_URL: str = ""  # Set in .env — never hardcode credentials here
 
     # AWS S3
     AWS_REGION: str = "ap-south-1"
