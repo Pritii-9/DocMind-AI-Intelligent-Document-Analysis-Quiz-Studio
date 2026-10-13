@@ -54,9 +54,15 @@ def log_candidate_to_sheets(
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     github_url = github_data.get("profile_url", "") if github_data else ""
+    # Format questions whether passed as strings or dict objects
+    formatted_q = []
+    for q in (questions or []):
+        if isinstance(q, dict):
+            formatted_q.append(q.get("question", str(q)))
+        else:
+            formatted_q.append(str(q))
+    questions_text = " | ".join(formatted_q)
     languages = ", ".join(github_data.get("top_languages", [])) if github_data else ""
-    questions_text = " | ".join(questions) if questions else ""
-
     row = [timestamp, name, score, github_url, languages, questions_text]
 
     # ── Mock mode: no credentials at all ──────────────────────────────────

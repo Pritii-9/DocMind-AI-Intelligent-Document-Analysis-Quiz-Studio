@@ -51,11 +51,14 @@ class GenerateQuestionsIn(BaseModel):
     jd: str
 
 
+from typing import Any
+
+
 class LogToSheetsIn(BaseModel):
     name: str
     score: int
     github_data: dict = {}
-    questions: list[str] = []
+    questions: list[Any] = []
 
 
 # ── 1. POST /api/hire/screen ──────────────────────────────────────────────────
