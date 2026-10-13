@@ -3,3 +3,8 @@ backend/.env
 frontend/.env
 node_modules/
 __pycache__/
+*.pyc
+secrets/
+*_creds.json
+*_credentials.json
+*-service-account.json
