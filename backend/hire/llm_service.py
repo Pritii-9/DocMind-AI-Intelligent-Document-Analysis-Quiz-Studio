@@ -11,12 +11,11 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from config import settings
 
-# ── Model preference: use current active Groq models ─────────────────────────
+# ── Model preference: verified active Groq models ────────────────────────────
 HIRE_MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "llama3-70b-8192",
-    settings.GROQ_CHAT_MODEL,
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
 ]
 
 
