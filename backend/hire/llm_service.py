@@ -11,13 +11,12 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from config import settings
 
-# ── Model preference: prefer llama-3.1-70b, fall back gracefully ──────────────
+# ── Model preference: use current active Groq models ─────────────────────────
 HIRE_MODELS = [
-    "llama-3.1-70b-versatile",
     "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
     "llama3-70b-8192",
     settings.GROQ_CHAT_MODEL,
-    "groq/compound",
 ]
 
 
@@ -31,7 +30,7 @@ def _hire_chat(prompt: str, system: str, temperature: float = 0.3) -> str:
     last_error = None
     tried = set()
     for model_name in HIRE_MODELS:
-        if model_name in tried:
+        if not model_name or model_name in tried:
             continue
         tried.add(model_name)
         try:
@@ -44,7 +43,16 @@ def _hire_chat(prompt: str, system: str, temperature: float = 0.3) -> str:
             return llm.invoke(lc_msgs).content.strip()
         except Exception as e:
             err = str(e)
-            if "NotFoundError" in err or "model_not_found" in err or "404" in err:
+            if any(
+                phrase in err
+                for phrase in [
+                    "NotFoundError",
+                    "model_not_found",
+                    "404",
+                    "decommissioned",
+                    "model_decommissioned",
+                ]
+            ):
                 last_error = e
                 continue
             raise e
