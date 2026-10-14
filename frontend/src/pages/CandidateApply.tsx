@@ -14,10 +14,15 @@ import api from "../api/client";
 import { getJobOpenings, type JobOpening } from "../utils/jobStorage";
 import { useCompany } from "../context/CompanyContext";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+const GITHUB_USERNAME_REGEX = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+
 export default function CandidateApply() {
   const { branding } = useCompany();
   const [jobs, setJobs] = useState<JobOpening[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [urlCompanyName, setUrlCompanyName] = useState<string | null>(null);
+
   const [candidateName, setCandidateName] = useState("");
   const [candidateEmail, setCandidateEmail] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
@@ -32,9 +37,13 @@ export default function CandidateApply() {
     const list = getJobOpenings().filter((j) => j.status === "active");
     setJobs(list);
 
-    // Check URL query param e.g. /apply?role=job-ai-engineer
     try {
       const params = new URLSearchParams(window.location.search);
+      const qCompany = params.get("company");
+      if (qCompany && qCompany.trim()) {
+        setUrlCompanyName(qCompany.trim());
+      }
+
       const queryRole = params.get("role");
       if (queryRole && list.some((j) => j.id === queryRole)) {
         setSelectedJobId(queryRole);
@@ -49,13 +58,14 @@ export default function CandidateApply() {
     }
   }, []);
 
+  const effectiveCompanyName = urlCompanyName || branding.name || "HireMind AI";
   const activeJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (!file.name.toLowerCase().endsWith(".pdf")) {
-        setErrorMsg("Please upload a PDF resume.");
+        setErrorMsg("Please upload a PDF resume (.pdf).");
         return;
       }
       setResumeFile(file);
@@ -69,7 +79,7 @@ export default function CandidateApply() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       if (!file.name.toLowerCase().endsWith(".pdf")) {
-        setErrorMsg("Please upload a PDF resume.");
+        setErrorMsg("Please upload a PDF resume (.pdf).");
         return;
       }
       setResumeFile(file);
@@ -78,22 +88,53 @@ export default function CandidateApply() {
   };
 
   const cleanGithubUsername = (url: string) => {
-    const clean = url.trim().replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/\/+$/, "");
-    return clean;
+    return url
+      .trim()
+      .replace(/^https?:\/\/(www\.)?github\.com\//i, "")
+      .replace(/^@/, "")
+      .replace(/\/+$/, "");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!candidateName.trim()) {
-      setErrorMsg("Please enter your full name.");
+
+    // ── Strict Validation Rules ──
+    const trimmedName = candidateName.trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      setErrorMsg("Please enter your full legal name (at least 2 characters).");
       return;
     }
-    if (!candidateEmail.trim()) {
-      setErrorMsg("Please enter your email address.");
+    if (!/[a-zA-Z]/.test(trimmedName)) {
+      setErrorMsg("Name must contain letters.");
       return;
     }
+
+    const trimmedEmail = candidateEmail.trim().toLowerCase();
+    if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
+      setErrorMsg("Please enter a valid email address (e.g., candidate@domain.com).");
+      return;
+    }
+
     if (!resumeFile) {
       setErrorMsg("Please upload your resume in PDF format.");
+      return;
+    }
+    if (!resumeFile.name.toLowerCase().endsWith(".pdf")) {
+      setErrorMsg("Resume file must be a valid PDF document (.pdf).");
+      return;
+    }
+    if (resumeFile.size < 5 * 1024) {
+      setErrorMsg("Uploaded resume is under 5KB and appears corrupted or empty.");
+      return;
+    }
+    if (resumeFile.size > 10 * 1024 * 1024) {
+      setErrorMsg("Resume PDF exceeds the 10MB maximum file size limit.");
+      return;
+    }
+
+    const ghUser = cleanGithubUsername(githubUrl);
+    if (ghUser && !GITHUB_USERNAME_REGEX.test(ghUser)) {
+      setErrorMsg("Invalid GitHub username format. Please enter your valid GitHub username.");
       return;
     }
 
@@ -101,14 +142,13 @@ export default function CandidateApply() {
     setErrorMsg("");
 
     try {
-      const ghUser = cleanGithubUsername(githubUrl);
       const targetJd = activeJob?.description || "Software Engineer role";
       const formData = new FormData();
       formData.append("job_description", targetJd);
       formData.append("github_username", ghUser);
       formData.append("resume_file", resumeFile);
 
-      // 1. Screen candidate
+      // 1. Screen candidate via AI pipeline
       const screenRes = await api.post("/api/hire/screen", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -126,10 +166,10 @@ export default function CandidateApply() {
         console.warn("Questions generation skipped:", err);
       }
 
-      // 3. Log to Google Sheet with Role
+      // 3. Log to Google Sheet with Company and Role tagging
       try {
         await api.post("/api/hire/log-to-sheets", {
-          name: `${candidateName.trim()} [${activeJob?.title || "Candidate"}]`,
+          name: `[${effectiveCompanyName}] ${trimmedName} [${activeJob?.title || "Candidate"}]`,
           score: data.screening?.score || 70,
           github_data: data.github_data || {},
           questions: questions,
@@ -138,14 +178,15 @@ export default function CandidateApply() {
         console.warn("Sheets logging:", err);
       }
 
-      // Store in local applicant list for recruiter pipeline
+      // 4. Store in local applicant list for recruiter pipeline tagged by company
       try {
         const existing = JSON.parse(localStorage.getItem("hiremind_candidates") || "[]");
         const newRecord = {
           id: Date.now().toString(),
-          name: candidateName.trim(),
+          company: effectiveCompanyName,
+          name: trimmedName,
           role: activeJob?.title || "Software Engineer",
-          email: candidateEmail.trim(),
+          email: trimmedEmail,
           github: ghUser,
           score: data.screening?.score || 70,
           skills: data.screening?.skills_found || [],
@@ -166,7 +207,7 @@ export default function CandidateApply() {
       const isColdStart = err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error");
       setErrorMsg(
         isColdStart
-          ? "Cloud server waking up from sleep. Please wait 15 seconds and click Submit again!"
+          ? "Cloud AI engine waking up from sleep. Please wait 15 seconds and click Submit again!"
           : (err?.response?.data?.detail || "Failed to submit application. Please verify your details.")
       );
     } finally {
@@ -181,14 +222,14 @@ export default function CandidateApply() {
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold text-xs ring-1 ring-slate-800 shadow-xs overflow-hidden">
             {branding.logoUrl ? (
-              <img src={branding.logoUrl} alt={branding.name} className="w-full h-full object-contain p-1" />
+              <img src={branding.logoUrl} alt={effectiveCompanyName} className="w-full h-full object-contain p-1" />
             ) : (
-              branding.name.slice(0, 2).toUpperCase() || "HM"
+              effectiveCompanyName.slice(0, 2).toUpperCase() || "HM"
             )}
           </div>
           <div>
             <h1 className="font-bold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
-              <span>{branding.name} Careers</span>
+              <span>{effectiveCompanyName} Careers</span>
               <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PORTAL</span>
             </h1>
             <p className="text-[11px] text-slate-500">{branding.tagline || "Autonomous Talent Evaluation"}</p>
@@ -218,7 +259,7 @@ export default function CandidateApply() {
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Application Received!</h2>
             <p className="text-sm text-slate-600 max-w-md mx-auto mb-6">
-              Thank you, <strong>{candidateName}</strong>. Your engineering profile has been submitted to <strong>{branding.name}</strong>. The hiring team has been notified.
+              Thank you, <strong>{candidateName}</strong>. Your engineering profile has been submitted to <strong>{effectiveCompanyName}</strong> for the <strong>{activeJob?.title || "selected"}</strong> position. The hiring team has been notified.
             </p>
             <button
               onClick={() => {
@@ -228,7 +269,7 @@ export default function CandidateApply() {
                 setGithubUrl("");
                 setResumeFile(null);
               }}
-              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition"
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition cursor-pointer"
             >
               Submit Another Application
             </button>
@@ -240,7 +281,7 @@ export default function CandidateApply() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
                   <Building2 size={14} />
-                  <span>{branding.name} • Open Position</span>
+                  <span>{effectiveCompanyName} • Open Position</span>
                 </div>
                 {jobs.length > 1 && (
                   <div className="relative inline-flex items-center">
@@ -277,70 +318,76 @@ export default function CandidateApply() {
                 </div>
               )}
 
-              {/* Name & Email */}
+              {/* Name & Email Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Alex Morgan"
                     value={candidateName}
                     onChange={(e) => setCandidateName(e.target.value)}
-                    className="w-full text-xs px-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Ada Lovelace"
+                    className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                     Email Address <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
                     required
-                    placeholder="alex@example.com"
                     value={candidateEmail}
                     onChange={(e) => setCandidateEmail(e.target.value)}
-                    className="w-full text-xs px-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="ada@example.com"
+                    className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors"
                   />
                 </div>
               </div>
 
               {/* GitHub Profile */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  GitHub Profile URL or Username
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  GitHub Profile (Optional but Recommended)
                 </label>
-                <div className="relative">
-                  <Github size={16} className="absolute left-3 top-3 text-slate-400" />
+                <div className="relative flex items-center">
+                  <Github size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="https://github.com/your-username"
                     value={githubUrl}
                     onChange={(e) => setGithubUrl(e.target.value)}
-                    className="w-full text-xs pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="https://github.com/username or @username"
+                    className="w-full h-9 border border-slate-200 rounded-lg pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Our system verifies repository history, top languages, and public code contributions.
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Our AI evaluates repository architecture, commit velocity, and language proficiency.
                 </p>
               </div>
 
-              {/* Resume Upload */}
+              {/* PDF Resume Drag & Drop Upload */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Resume (PDF) <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Resume / CV (PDF format) <span className="text-red-500">*</span>
                 </label>
                 <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 ${
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
                     isDragging
-                      ? "border-indigo-600 bg-indigo-50/50 scale-[1.01]"
-                      : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/20"
+                      ? "border-indigo-500 bg-indigo-50/50"
+                      : resumeFile
+                      ? "border-emerald-300 bg-emerald-50/30"
+                      : "border-slate-200 hover:border-slate-400 hover:bg-slate-50"
                   }`}
                 >
                   <input
@@ -351,8 +398,8 @@ export default function CandidateApply() {
                     className="hidden"
                   />
                   {resumeFile ? (
-                    <div className="flex items-center gap-2 text-indigo-600 font-medium text-xs">
-                      <FileText size={18} />
+                    <div className="flex items-center gap-2 text-emerald-700 font-medium text-xs">
+                      <FileText size={18} className="text-emerald-600" />
                       <span>{resumeFile.name} ({(resumeFile.size / 1024).toFixed(0)} KB)</span>
                     </div>
                   ) : (
@@ -373,7 +420,7 @@ export default function CandidateApply() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-sm hover:shadow"
+                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 active:bg-black text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-xs"
               >
                 {submitting ? (
                   <>
@@ -394,7 +441,7 @@ export default function CandidateApply() {
 
       {/* Footer */}
       <footer className="text-center py-4 border-t border-slate-200 text-[11px] text-slate-400">
-        Careers at {branding.name} • Powered by HireMind AI Candidate Intelligence
+        Careers at {effectiveCompanyName} • Powered by HireMind AI Candidate Intelligence
       </footer>
     </div>
   );

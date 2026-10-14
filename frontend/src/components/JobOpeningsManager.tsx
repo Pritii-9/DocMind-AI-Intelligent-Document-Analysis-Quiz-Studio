@@ -9,12 +9,14 @@ import {
 } from "lucide-react";
 import { getJobOpenings, saveJobOpenings, addJobOpening, type JobOpening } from "../utils/jobStorage";
 import { getPublicApplyUrl } from "../utils/appUrl";
+import { useCompany } from "../context/CompanyContext";
 
 interface JobOpeningsManagerProps {
   onSelectRoleForScreen: (job: JobOpening) => void;
 }
 
 export default function JobOpeningsManager({ onSelectRoleForScreen }: JobOpeningsManagerProps) {
+  const { branding } = useCompany();
   const [jobs, setJobs] = useState<JobOpening[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export default function JobOpeningsManager({ onSelectRoleForScreen }: JobOpening
   }, []);
 
   const handleCopyLink = (jobId: string) => {
-    const url = getPublicApplyUrl(jobId);
+    const url = getPublicApplyUrl({ roleId: jobId, companyName: branding.name });
     navigator.clipboard.writeText(url);
     setCopiedId(jobId);
     setTimeout(() => setCopiedId(null), 2000);

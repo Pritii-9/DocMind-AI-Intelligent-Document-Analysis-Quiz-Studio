@@ -13,6 +13,8 @@ import {
 interface CandidateRecord {
   id: string;
   name: string;
+  company?: string;
+  role?: string;
   email?: string;
   github?: string;
   score: number;
@@ -262,7 +264,15 @@ export default function CandidatePipeline({ onSwitchToScreen }: { onSwitchToScre
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2.5 text-[11px] text-slate-500 mt-0.5">
+                      <div className="flex items-center gap-2.5 text-[11px] text-slate-500 mt-0.5 flex-wrap">
+                        {candidate.company && (
+                          <span className="font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded text-[10px]">
+                            {candidate.company}
+                          </span>
+                        )}
+                        {candidate.role && (
+                          <span className="text-slate-600 font-medium">{candidate.role}</span>
+                        )}
                         {candidate.github && (
                           <a
                             href={`https://github.com/${candidate.github}`}

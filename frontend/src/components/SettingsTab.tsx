@@ -35,7 +35,7 @@ export default function SettingsTab() {
     setCompanyWebsite(branding.websiteUrl);
   }, [branding]);
 
-  const publicApplyUrl = getPublicApplyUrl();
+  const publicApplyUrl = getPublicApplyUrl({ companyName: branding.name });
 
   const handleLogoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return;

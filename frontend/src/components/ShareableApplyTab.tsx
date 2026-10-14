@@ -9,8 +9,8 @@ export default function ShareableApplyTab() {
   const isLocalDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const [useLocalOrigin, setUseLocalOrigin] = useState(false);
 
-  // Default to the live deployment URL so candidates receive a reachable URL
-  const applyUrl = getPublicApplyUrl(undefined, useLocalOrigin);
+  // Default to the live deployment URL with company tagging so candidates receive a reachable URL
+  const applyUrl = getPublicApplyUrl({ companyName: branding.name, forceLocal: useLocalOrigin });
 
   const handleCopy = () => {
     navigator.clipboard.writeText(applyUrl);
