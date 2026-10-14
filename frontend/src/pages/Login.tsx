@@ -2,35 +2,45 @@ import LoginAuthCard from "../components/LoginAuthCard";
 
 export default function Login() {
   return (
-    <div
-      className="relative min-h-screen flex flex-col items-center justify-center px-5 py-10 font-[Inter,system-ui,sans-serif] text-slate-900 overflow-hidden"
-      style={{ background: "radial-gradient(circle at 50% 0%, var(--brand-light) 0%, #f8fafc 70%)" }}
-    >
-      {/* Dot grid background */}
+    <div className="h-screen w-full max-h-screen overflow-hidden bg-[#f8fafc] flex flex-col items-center justify-center px-4 py-2 font-[Inter,system-ui,sans-serif] text-slate-900 antialiased">
+      {/* Subtle ambient top glow */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-40"
-        style={{ backgroundImage: "radial-gradient(#e2e8f0 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+        className="pointer-events-none absolute inset-x-0 top-0 h-64 opacity-50"
+        style={{
+          background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(99, 102, 241, 0.08), transparent 70%)",
+        }}
       />
 
-      <div className="w-full max-w-[410px] relative z-10 animate-in">
+      <div className="relative z-10 w-full max-w-[380px] my-auto">
         {/* Brand header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-[52px] h-[52px] rounded-2xl bg-white shadow-md border border-slate-200 mb-4">
-            <img src="/logo.svg" alt="DocMind Logo" className="w-[34px] h-[34px] rounded-[9px]" />
+        <div className="text-center mb-3">
+          <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900 text-white font-bold text-xs mb-1.5 shadow-xs ring-1 ring-slate-800">
+            HM
           </div>
-          <h1 className="text-[22px] font-extrabold tracking-[-0.03em] text-slate-900 mb-1">DocMind</h1>
-          <p className="text-[13px] text-slate-500 font-medium">Intelligent Document Analysis &amp; Quiz Studio</p>
+          <div className="flex items-center justify-center gap-1.5 mb-0.5">
+            <h1 className="text-lg font-bold tracking-tight text-slate-900">HireMind</h1>
+            <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              AI
+            </span>
+          </div>
+          <p className="text-[11.5px] text-slate-500 font-normal">
+            Autonomous Tech Candidate Screening &amp; ATS Intelligence
+          </p>
         </div>
 
-        {/* Auth Card */}
-        <div className="shadow-[0_20px_35px_-10px_rgba(15,23,42,0.06),0_1px_3px_rgba(0,0,0,0.03)]">
-          <LoginAuthCard />
-        </div>
+        {/* Core Auth Card */}
+        <LoginAuthCard />
 
-        {/* Footer note */}
-        <p className="text-center mt-7 text-xs text-slate-400 font-medium">
-          Encrypted S3 storage · DocMind AI Workspace
-        </p>
+        {/* Candidate application link */}
+        <div className="mt-3 text-center text-[11px] text-slate-500">
+          Looking to apply for an open role?{" "}
+          <a
+            href="/apply"
+            className="text-slate-700 hover:text-indigo-600 font-semibold underline underline-offset-2 transition-colors"
+          >
+            Public Application Portal (/apply)
+          </a>
+        </div>
       </div>
     </div>
   );

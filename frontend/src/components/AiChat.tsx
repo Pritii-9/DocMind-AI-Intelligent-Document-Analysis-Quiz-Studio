@@ -199,7 +199,7 @@ export default function AiChatView() {
             </button>
           </form>
           <div className="flex justify-between items-center mt-1.5 px-1">
-            <span className="text-[11px] text-slate-400">DocMind AI reads document embeddings for accurate citations.</span>
+            <span className="text-[11px] text-slate-400">HireMind AI reads document embeddings for accurate citations.</span>
             <span className="text-[11px] text-slate-400 inline-flex items-center gap-1">
               Press <CornerDownLeft size={10} /> Enter to send
             </span>

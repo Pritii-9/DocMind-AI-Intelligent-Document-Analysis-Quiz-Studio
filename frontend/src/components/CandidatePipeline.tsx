@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  Users,
   ExternalLink,
   Github,
   CheckCircle2,
@@ -25,7 +24,6 @@ interface CandidateRecord {
   github_data?: any;
 }
 
-// Initial demo candidates so recruiter sees a rich ATS right away
 const INITIAL_DEMO: CandidateRecord[] = [
   {
     id: "demo-1",
@@ -94,7 +92,6 @@ export default function CandidatePipeline({ onSwitchToScreen }: { onSwitchToScre
     } catch (e) {
       console.warn("Could not read stored candidates:", e);
     }
-    // Default fallback
     setCandidates(INITIAL_DEMO);
     localStorage.setItem("hiremind_candidates", JSON.stringify(INITIAL_DEMO));
   }, []);
@@ -113,268 +110,255 @@ export default function CandidatePipeline({ onSwitchToScreen }: { onSwitchToScre
 
   const totalCount = candidates.length;
   const shortlistedCount = candidates.filter((c) => c.score >= 70).length;
+  const reviewedCount = totalCount - shortlistedCount;
   const avgScore = totalCount > 0 ? Math.round(candidates.reduce((a, b) => a + b.score, 0) / totalCount) : 0;
 
-  const scoreBadgeColor = (score: number) => {
+  const scoreBadge = (score: number) => {
     if (score >= 80) return "bg-emerald-50 text-emerald-700 border-emerald-200";
     if (score >= 60) return "bg-amber-50 text-amber-700 border-amber-200";
-    return "bg-rose-50 text-rose-700 border-rose-200";
+    return "bg-slate-100 text-slate-700 border-slate-200";
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Top Banner / Metrics */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+    <div className="p-8 max-w-6xl mx-auto space-y-6 font-[Inter,system-ui,sans-serif]">
+      {/* Header and Actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Users className="text-indigo-600" size={20} />
-            Applicant Tracking & Pipeline
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Real-time candidate evaluation powered by Groq LLM and GitHub Intelligence.
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Candidate Pipeline</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Active candidate profiles and automated evaluations.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {onSwitchToScreen && (
             <button
+              type="button"
               onClick={onSwitchToScreen}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition cursor-pointer shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs cursor-pointer active:scale-[0.99]"
             >
               <PlusCircle size={14} />
-              Quick Screen Resume
+              <span>Quick Screen</span>
             </button>
           )}
           <a
             href="https://docs.google.com/spreadsheets/d/1RsYvMSI8Nte2OU7uzSYTjqyBidwgXbXs9uC6IIttqUg"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 transition-all shadow-xs"
           >
-            <ExternalLink size={14} />
-            Open Google Sheets CRM
+            <ExternalLink size={14} className="text-slate-500" />
+            <span>Google Sheets</span>
           </a>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Applicants</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{totalCount}</p>
+      {/* Metric Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-xs">
+          <span className="text-[11px] font-medium text-slate-500">Total Applicants</span>
+          <p className="text-2xl font-bold tracking-tight text-slate-900 mt-1">{totalCount}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Shortlisted (Score ≥ 70)</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">{shortlistedCount}</p>
+        <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-xs">
+          <span className="text-[11px] font-medium text-slate-500">Shortlisted (Score ≥ 70)</span>
+          <p className="text-2xl font-bold tracking-tight text-emerald-600 mt-1">{shortlistedCount}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Average Match Score</p>
-          <p className="text-2xl font-bold text-indigo-600 mt-1">{avgScore} / 100</p>
+        <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-xs">
+          <span className="text-[11px] font-medium text-slate-500">Avg Match Score</span>
+          <p className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
+            {avgScore}<span className="text-xs font-normal text-slate-400 ml-1">/ 100</span>
+          </p>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
-        <div className="relative w-full sm:w-72">
-          <Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
+      {/* Search & Segmented Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white border border-slate-200/90 p-2.5 rounded-xl shadow-xs">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search candidate name, skill, or GitHub..."
+            placeholder="Filter candidates or skills..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full h-8 pl-8 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 transition"
           />
         </div>
-        <div className="flex items-center gap-1.5 w-full sm:w-auto">
+
+        {/* Unified Segment Control */}
+        <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/80 text-xs">
           <button
+            type="button"
             onClick={() => setFilter("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
-              filter === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
+              filter === "all"
+                ? "bg-white text-slate-900 shadow-2xs font-semibold"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            All Candidates
+            All ({totalCount})
           </button>
           <button
+            type="button"
             onClick={() => setFilter("shortlisted")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+            className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
               filter === "shortlisted"
-                ? "bg-emerald-600 text-white"
-                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                ? "bg-white text-slate-900 shadow-2xs font-semibold"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Shortlisted Only
+            Shortlisted ({shortlistedCount})
           </button>
           <button
+            type="button"
             onClick={() => setFilter("reviewed")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${
+            className={`px-3 py-1 rounded-md font-medium transition cursor-pointer ${
               filter === "reviewed"
-                ? "bg-rose-600 text-white"
-                : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                ? "bg-white text-slate-900 shadow-2xs font-semibold"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Not Shortlisted
+            Under Review ({reviewedCount})
           </button>
         </div>
       </div>
 
-      {/* Candidate Cards Table */}
-      <div className="space-y-3">
+      {/* Candidate List Rows */}
+      <div className="space-y-2">
         {filtered.length === 0 ? (
-          <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-400 text-xs">
-            No candidates found matching your filter.
+          <div className="bg-white p-10 text-center rounded-xl border border-slate-200 text-slate-400 text-xs">
+            No candidates match your current filter.
           </div>
         ) : (
           filtered.map((candidate) => {
             const isExpanded = expandedId === candidate.id;
+            const isShortlisted = candidate.score >= 70;
             return (
               <div
                 key={candidate.id}
-                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition hover:border-slate-300"
+                className="bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-2xs transition-all hover:border-slate-300"
               >
-                {/* Header Row */}
-                <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3.5">
-                    {/* Score Circle Badge */}
+                {/* Main Summary Row */}
+                <div className="p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {/* Score Pill */}
                     <div
-                      className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center font-bold text-sm border ${scoreBadgeColor(
+                      className={`h-9 px-2.5 rounded-lg flex items-center justify-center font-bold text-xs border shrink-0 ${scoreBadge(
                         candidate.score
                       )}`}
                     >
-                      <span>{candidate.score}</span>
-                      <span className="text-[9px] font-normal leading-none opacity-80">/100</span>
+                      {candidate.score}/100
                     </div>
 
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-slate-900 text-sm">{candidate.name}</h3>
-                        {candidate.score >= 70 ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="font-semibold text-slate-900 text-[13px]">{candidate.name}</span>
+                        {isShortlisted ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <CheckCircle2 size={11} /> Shortlisted
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                          <span className="text-[10px] font-medium px-2 py-0.2 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                             Under Review
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1">
+                      <div className="flex items-center gap-2.5 text-[11px] text-slate-500 mt-0.5">
                         {candidate.github && (
                           <a
                             href={`https://github.com/${candidate.github}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+                            className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 font-mono transition-colors"
                           >
-                            <Github size={12} />
+                            <Github size={11} />
                             @{candidate.github}
                           </a>
                         )}
-                        <span>Applied {new Date(candidate.appliedAt).toLocaleDateString()}</span>
+                        <span className="text-slate-300">•</span>
+                        <span>{new Date(candidate.appliedAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Skills Preview & Action */}
+                  {/* Skills tags & Expand Action */}
                   <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                    <div className="hidden md:flex items-center gap-1.5 flex-wrap max-w-sm justify-end">
-                      {candidate.skills?.slice(0, 4).map((skill, i) => (
+                    <div className="hidden md:flex items-center gap-1.5 flex-wrap justify-end">
+                      {candidate.skills?.slice(0, 4).map((skill, idx) => (
                         <span
-                          key={i}
-                          className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600"
+                          key={idx}
+                          className="px-2 py-0.5 rounded text-[10.5px] font-medium bg-slate-50 text-slate-600 border border-slate-200/60"
                         >
                           {skill}
                         </span>
                       ))}
                       {candidate.skills?.length > 4 && (
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          +{candidate.skills.length - 4} more
+                        <span className="text-[10px] text-slate-400">
+                          +{candidate.skills.length - 4}
                         </span>
                       )}
                     </div>
 
                     <button
+                      type="button"
                       onClick={() => setExpandedId(isExpanded ? null : candidate.id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 transition cursor-pointer shrink-0"
                     >
-                      <span>{isExpanded ? "Hide Details" : "Review Candidate"}</span>
-                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      <span>{isExpanded ? "Hide Details" : "View Details"}</span>
+                      {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Expanded Details Drawer */}
+                {/* Flattened Details Drawer */}
                 {isExpanded && (
-                  <div className="border-t border-slate-100 bg-slate-50/70 p-5 space-y-4">
-                    {/* Evaluation Summary */}
+                  <div className="border-t border-slate-100 bg-slate-50/60 p-4 space-y-3.5">
+                    {/* Summary */}
                     {candidate.reason && (
-                      <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          AI Screening Assessment
-                        </p>
-                        <p className="text-xs text-slate-700 leading-relaxed">{candidate.reason}</p>
+                      <div className="text-xs text-slate-700 leading-relaxed">
+                        <span className="font-semibold text-slate-900 block mb-0.5">Evaluation Summary</span>
+                        {candidate.reason}
                       </div>
                     )}
 
                     {/* GitHub Insights */}
                     {candidate.github_data && (
-                      <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-wrap gap-4 text-xs">
-                        <div>
-                          <span className="text-slate-400 text-[11px] block">Public Repos:</span>
-                          <span className="font-semibold text-slate-800">
-                            {candidate.github_data.public_repos ?? "N/A"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 text-[11px] block">Followers:</span>
-                          <span className="font-semibold text-slate-800">
-                            {candidate.github_data.followers ?? "N/A"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 text-[11px] block">Top Languages:</span>
-                          <span className="font-semibold text-slate-800">
-                            {candidate.github_data.top_languages?.join(", ") || "None"}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-4 text-xs text-slate-600">
+                        <span>
+                          <strong className="text-slate-900 font-semibold">{candidate.github_data.public_repos ?? "N/A"}</strong> repos
+                        </span>
+                        <span>•</span>
+                        <span>
+                          <strong className="text-slate-900 font-semibold">{candidate.github_data.followers ?? "N/A"}</strong> followers
+                        </span>
+                        {candidate.github_data.top_languages && (
+                          <>
+                            <span>•</span>
+                            <span>Top: {candidate.github_data.top_languages.join(", ")}</span>
+                          </>
+                        )}
                       </div>
                     )}
 
                     {/* Interview Questions */}
                     {candidate.questions && candidate.questions.length > 0 && (
-                      <div>
-                        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                          <Sparkles size={13} className="text-indigo-600" />
-                          Generated Technical Interview Questions
-                        </p>
-                        <div className="space-y-2">
+                      <div className="pt-2 border-t border-slate-200/60">
+                        <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                          <Sparkles size={12} className="text-indigo-600" />
+                          Generated Interview Questions
+                        </span>
+                        <ul className="space-y-1.5">
                           {candidate.questions.map((q, idx) => (
-                            <div
-                              key={idx}
-                              className="bg-white p-3 rounded-lg border border-slate-200 flex items-start gap-2.5 text-xs"
-                            >
-                              <span className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center shrink-0 text-[10px]">
-                                {idx + 1}
-                              </span>
+                            <li key={idx} className="text-xs text-slate-700 flex items-start gap-2">
+                              <span className="font-mono text-slate-400 shrink-0 text-[11px]">{idx + 1}.</span>
                               <div className="flex-1">
-                                <p className="text-slate-800 font-medium">{q.question}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-[10px] text-slate-400 font-medium">{q.topic}</span>
-                                  <span
-                                    className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
-                                      q.difficulty === "Hard"
-                                        ? "bg-rose-50 text-rose-600"
-                                        : q.difficulty === "Medium"
-                                        ? "bg-amber-50 text-amber-600"
-                                        : "bg-emerald-50 text-emerald-600"
-                                    }`}
-                                  >
-                                    {q.difficulty}
-                                  </span>
-                                </div>
+                                <span>{q.question}</span>
+                                <span className="ml-2 text-[10px] text-slate-400 font-normal">
+                                  ({q.topic} • {q.difficulty})
+                                </span>
                               </div>
-                            </div>
+                            </li>
                           ))}
-                        </div>
+                        </ul>
                       </div>
                     )}
                   </div>

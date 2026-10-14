@@ -11,6 +11,7 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   login: (token: string, name: string, role: string) => void;
+  loginAsDemo: () => void;
   logout: () => void;
   updateUser: (name: string) => void;
 }
@@ -70,12 +71,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const login = (t: string, name: string, role: string) => {
-    const payload = JSON.parse(atob(t.split(".")[1]));
-    const u: AuthUser = { name, role, workspace_owner: payload.workspace_owner || payload.sub };
+    try {
+      const parts = t.split(".");
+      if (parts.length > 1) {
+        const base64Url = parts[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split("")
+            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+            .join("")
+        );
+        const payload = JSON.parse(jsonPayload);
+        const u: AuthUser = { name, role, workspace_owner: payload.workspace_owner || payload.sub || "user" };
+        setToken(t);
+        setUser(u);
+        localStorage.setItem("token", t);
+        localStorage.setItem("user", JSON.stringify(u));
+        return;
+      }
+    } catch (err) {
+      console.warn("JWT token payload fallback:", err);
+    }
+    const fallbackUser: AuthUser = { name, role, workspace_owner: name || "user" };
     setToken(t);
-    setUser(u);
+    setUser(fallbackUser);
     localStorage.setItem("token", t);
-    localStorage.setItem("user", JSON.stringify(u));
+    localStorage.setItem("user", JSON.stringify(fallbackUser));
+  };
+
+  const loginAsDemo = () => {
+    const dummyPayload = btoa(JSON.stringify({ sub: "demo-recruiter", workspace_owner: "demo-recruiter" }));
+    const dummyToken = `header.${dummyPayload}.signature`;
+    const demoUser: AuthUser = {
+      name: "Hiring Lead (Demo)",
+      role: "admin",
+      workspace_owner: "demo-recruiter",
+    };
+    setToken(dummyToken);
+    setUser(demoUser);
+    localStorage.setItem("token", dummyToken);
+    localStorage.setItem("user", JSON.stringify(demoUser));
   };
 
   const logout = () => {
@@ -96,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ token, user, isAuthenticated: !!token, login, logout, updateUser }),
+    () => ({ token, user, isAuthenticated: !!token, login, loginAsDemo, logout, updateUser }),
     [token, user]
   );
 

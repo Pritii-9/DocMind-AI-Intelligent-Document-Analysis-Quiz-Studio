@@ -1,13 +1,15 @@
-import { Users, Briefcase, BriefcaseBusiness, Share2, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Briefcase, BriefcaseBusiness, Share2, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useCompany } from "../context/CompanyContext";
 
-export type Tab = "pipeline" | "jobs" | "hire" | "apply";
+export type Tab = "pipeline" | "jobs" | "hire" | "apply" | "settings";
 
-const NAV: { id: Tab; label: string; icon: any; badge?: string }[] = [
+const NAV: { id: Tab; label: string; icon: any }[] = [
   { id: "pipeline", label: "Candidate Pipeline", icon: Users },
   { id: "jobs",     label: "Job Openings",       icon: Briefcase },
   { id: "hire",     label: "Quick Screen",       icon: BriefcaseBusiness },
   { id: "apply",    label: "Public Apply Portal",icon: Share2 },
+  { id: "settings", label: "Settings",           icon: Settings },
 ];
 
 interface SidebarProps {
@@ -19,41 +21,61 @@ interface SidebarProps {
   onOpenProfile?: () => void;
 }
 
-export default function Sidebar({ tab, setTab, collapsed, setCollapsed, onOpenSignOut, onOpenProfile }: SidebarProps) {
+export default function Sidebar({
+  tab,
+  setTab,
+  collapsed,
+  setCollapsed,
+  onOpenSignOut,
+  onOpenProfile,
+}: SidebarProps) {
   const { user } = useAuth();
+  const { branding } = useCompany();
 
   return (
     <aside
-      className="relative z-20 flex flex-col bg-white border-r border-slate-200 shrink-0 transition-all duration-200"
-      style={{ width: collapsed ? 64 : 230 }}
+      className="relative z-20 flex flex-col bg-white border-r border-slate-200/80 shrink-0 transition-all duration-200 select-none"
+      style={{ width: collapsed ? 64 : 240 }}
     >
-      {/* Brand header */}
+      {/* Brand Header */}
       <div
-        className="h-[60px] flex items-center border-b border-slate-100 shrink-0"
-        style={{ justifyContent: collapsed ? "center" : "space-between", padding: collapsed ? "0 14px" : "0 16px 0 18px" }}
+        className="h-14 flex items-center border-b border-slate-100 shrink-0 px-4"
+        style={{ justifyContent: collapsed ? "center" : "space-between" }}
       >
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-            HM
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0 shadow-xs overflow-hidden">
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt={branding.name} className="w-full h-full object-contain p-1" />
+            ) : (
+              branding.name.slice(0, 2).toUpperCase() || "HM"
+            )}
           </div>
           {!collapsed && (
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-[15px] tracking-tight text-slate-900 leading-none">HireMind</span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
-                  AI
+                <span className="font-bold text-sm tracking-tight text-slate-900 leading-none truncate">
+                  {branding.name}
                 </span>
+                {branding.name === "HireMind AI" && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100 leading-none">
+                    AI
+                  </span>
+                )}
               </div>
-              <p className="text-[10px] text-slate-400 font-medium leading-none mt-1">Tech Hiring Agent</p>
+              <p className="text-[11px] text-slate-400 font-normal leading-none mt-1 truncate" title={branding.tagline}>
+                {branding.tagline || "Candidate Intelligence"}
+              </p>
             </div>
           )}
         </div>
+
         {!collapsed && (
           <button
             onClick={() => setCollapsed(true)}
-            className="text-slate-400 hover:text-slate-600 transition-colors p-1 cursor-pointer"
+            title="Collapse sidebar"
+            className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md p-1 transition-colors cursor-pointer"
           >
-            <ChevronLeft size={15} />
+            <ChevronLeft size={16} />
           </button>
         )}
       </div>
@@ -62,19 +84,21 @@ export default function Sidebar({ tab, setTab, collapsed, setCollapsed, onOpenSi
       {collapsed && (
         <button
           onClick={() => setCollapsed(false)}
-          className="absolute top-[18px] -right-3 w-6 h-6 rounded-full bg-white border border-slate-200 shadow flex items-center justify-center text-slate-400 hover:text-slate-600 z-30 cursor-pointer transition-colors"
+          title="Expand sidebar"
+          className="absolute top-4 -right-3 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-900 z-30 cursor-pointer transition-colors"
         >
           <ChevronRight size={12} />
         </button>
       )}
 
-      {/* Nav */}
-      <nav className="flex-1 p-2 flex flex-col gap-0.5">
+      {/* Navigation List */}
+      <nav className="flex-1 px-3 py-3 flex flex-col gap-1 overflow-y-auto">
         {!collapsed && (
-          <p className="text-[10px] font-bold tracking-[0.08em] uppercase text-slate-300 px-3 py-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-2 py-1">
             Workspace
           </p>
         )}
+
         {NAV.map(({ id, label, icon: Icon }) => {
           const active = tab === id;
           return (
@@ -83,53 +107,45 @@ export default function Sidebar({ tab, setTab, collapsed, setCollapsed, onOpenSi
               onClick={() => setTab(id)}
               title={collapsed ? label : undefined}
               className={[
-                "relative flex items-center rounded-lg border-none cursor-pointer transition-all duration-150 w-full",
-                collapsed ? "justify-center py-2.5 px-0" : "justify-start gap-2.5 py-[9px] px-3",
+                "flex items-center rounded-lg cursor-pointer transition-all duration-150 w-full text-left text-sm",
+                collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2",
                 active
-                  ? "text-[var(--brand)]"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800",
+                  ? "bg-slate-100 text-slate-900 font-semibold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium",
               ].join(" ")}
-              style={{ background: active ? "var(--brand-light)" : undefined }}
             >
-              {active && (
-                <div
-                  className="absolute left-0 top-[20%] bottom-[20%] w-[3px] rounded-r-md"
-                  style={{ background: "var(--brand)" }}
-                />
-              )}
-              <Icon size={16} />
+              <Icon
+                size={16}
+                className={active ? "text-slate-900 shrink-0" : "text-slate-500 shrink-0"}
+              />
               {!collapsed && (
-                <span className={`text-[13px] flex-1 text-left ${active ? "font-semibold" : "font-medium"}`}>
-                  {label}
-                </span>
+                <span className="truncate">{label}</span>
               )}
             </button>
           );
         })}
       </nav>
 
-      {/* User footer */}
-      <div className="border-t border-slate-100 p-2 shrink-0">
+      {/* User Footer */}
+      <div className="border-t border-slate-100 p-3 shrink-0 flex flex-col gap-1.5">
         <div
           onClick={onOpenProfile}
           title="Account Settings"
-          className="flex items-center rounded-lg bg-slate-50 cursor-pointer transition-all duration-150 hover:bg-[var(--brand-light)]"
-          style={{
-            gap: collapsed ? 0 : 10,
-            justifyContent: collapsed ? "center" : "flex-start",
-            padding: collapsed ? "8px 0" : "8px 10px",
-          }}
+          className={`flex items-center rounded-lg hover:bg-slate-100 cursor-pointer transition-colors ${
+            collapsed ? "justify-center p-1.5" : "gap-2.5 p-2"
+          }`}
         >
-          <div
-            className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-xs font-bold text-white"
-            style={{ background: "var(--brand)" }}
-          >
+          <div className="w-8 h-8 rounded-full bg-slate-900 text-white text-xs font-semibold shrink-0 flex items-center justify-center shadow-xs">
             {user?.name?.charAt(0).toUpperCase() || "U"}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-900 truncate">{user?.name}</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-[0.06em] font-semibold mt-px">{user?.role}</p>
+              <p className="text-xs font-semibold text-slate-900 truncate leading-snug">
+                {user?.name || "Hiring Lead"}
+              </p>
+              <p className="text-[11px] text-slate-500 capitalize leading-snug truncate">
+                {user?.role || "Recruiter"}
+              </p>
             </div>
           )}
         </div>
@@ -137,15 +153,12 @@ export default function Sidebar({ tab, setTab, collapsed, setCollapsed, onOpenSi
         <button
           onClick={onOpenSignOut}
           title={collapsed ? "Sign out" : undefined}
-          className="flex items-center w-full mt-1 rounded-lg border-none bg-transparent text-slate-400 text-[13px] font-medium cursor-pointer transition-all duration-150 hover:bg-red-50 hover:text-red-600"
-          style={{
-            gap: collapsed ? 0 : 9,
-            justifyContent: collapsed ? "center" : "flex-start",
-            padding: collapsed ? "9px 0" : "8px 12px",
-          }}
+          className={`flex items-center rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 text-xs font-medium cursor-pointer transition-colors ${
+            collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2 w-full"
+          }`}
         >
           <LogOut size={15} />
-          {!collapsed && "Sign out"}
+          {!collapsed && <span>Sign out</span>}
         </button>
       </div>
     </aside>

@@ -1,10 +1,16 @@
 import { useState } from "react";
-import { Copy, Check, ExternalLink, Share2, Globe, ShieldCheck } from "lucide-react";
-import CandidateApply from "../pages/CandidateApply";
+import { Copy, Check, ExternalLink, Globe, ShieldCheck } from "lucide-react";
+import { getPublicApplyUrl, PRODUCTION_FRONTEND_URL } from "../utils/appUrl";
+import { useCompany } from "../context/CompanyContext";
 
 export default function ShareableApplyTab() {
+  const { branding } = useCompany();
   const [copied, setCopied] = useState(false);
-  const applyUrl = `${window.location.origin}/apply`;
+  const isLocalDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  const [useLocalOrigin, setUseLocalOrigin] = useState(false);
+
+  // Default to the live deployment URL so candidates receive a reachable URL
+  const applyUrl = getPublicApplyUrl(undefined, useLocalOrigin);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(applyUrl);
@@ -13,64 +19,91 @@ export default function ShareableApplyTab() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Shareable Link Banner */}
-      <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white p-6 rounded-2xl shadow-sm">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-1">
-              <Share2 size={14} />
-              Candidate Ingestion Link
-            </div>
-            <h2 className="text-xl font-bold">Public Candidate Application Portal</h2>
-            <p className="text-slate-300 text-xs mt-1 max-w-xl leading-relaxed">
-              Share this link on LinkedIn, Twitter, job boards, or in candidate DMs. When a candidate submits their resume and GitHub, HireMind automatically evaluates them, logs them to Google Sheets, and alerts your team.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white text-slate-900 hover:bg-slate-100 transition shadow cursor-pointer"
-            >
-              {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-              {copied ? "Link Copied!" : "Copy Public Link"}
-            </button>
-            <a
-              href="/apply"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow cursor-pointer"
-            >
-              <ExternalLink size={14} />
-              Open Live Form
-            </a>
-          </div>
-        </div>
-
-        {/* Link Bar */}
-        <div className="mt-4 pt-4 border-t border-indigo-800/60 flex items-center gap-2 text-xs">
-          <Globe size={14} className="text-indigo-400 shrink-0" />
-          <span className="text-indigo-200 font-mono select-all bg-indigo-950/60 px-3 py-1.5 rounded-lg border border-indigo-700/50 flex-1 truncate">
-            {applyUrl}
-          </span>
-          <span className="text-[11px] text-emerald-300 flex items-center gap-1 shrink-0">
-            <ShieldCheck size={13} />
-            No recruiter login required for applicants
-          </span>
-        </div>
+    <div className="p-8 max-w-4xl mx-auto space-y-6 font-[Inter,system-ui,sans-serif]">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Application Portal</h1>
+        <p className="text-xs text-slate-500 mt-1">
+          Candidate ingestion and public application link for <strong className="text-slate-800">{branding.name}</strong>
+        </p>
       </div>
 
-      {/* Live Preview Container */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Live Preview (What Candidates See)
-          </span>
-          <span className="text-[11px] text-slate-400">Interactive Preview</span>
+      {/* Clean Card */}
+      <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-5">
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold text-slate-700">
+              Public Apply Link
+            </label>
+            {isLocalDev && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-400">Target:</span>
+                <button
+                  type="button"
+                  onClick={() => setUseLocalOrigin(false)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                    !useLocalOrigin
+                      ? "bg-slate-900 text-white font-semibold"
+                      : "bg-slate-100 text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Production (Vercel)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseLocalOrigin(true)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                    useLocalOrigin
+                      ? "bg-slate-900 text-white font-semibold"
+                      : "bg-slate-100 text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Local Dev
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            {/* Monospace Pill / Input */}
+            <div className="flex-1 flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 text-xs text-slate-800 font-mono select-all overflow-x-auto">
+              <Globe size={14} className="text-slate-400 shrink-0" />
+              <span className="truncate">{applyUrl}</span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 active:bg-black text-white transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+              >
+                {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                <span>{copied ? "Link Copied!" : "Copy Link"}</span>
+              </button>
+
+              <a
+                href={applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 hover:text-slate-900 transition-all shadow-xs cursor-pointer"
+              >
+                <ExternalLink size={14} className="text-slate-500" />
+                <span>Preview Form</span>
+              </a>
+            </div>
+          </div>
         </div>
-        <div className="max-h-[700px] overflow-y-auto">
-          <CandidateApply />
+
+        {/* Subtle Indicator Notes */}
+        <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+            <span>No recruiter login required for applicants.</span>
+          </div>
+          <span className="text-[11px] text-slate-400">
+            Deployed on Vercel: <span className="font-mono text-slate-600">{PRODUCTION_FRONTEND_URL}</span>
+          </span>
         </div>
       </div>
     </div>

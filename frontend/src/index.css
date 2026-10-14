@@ -1,11 +1,10 @@
 @import "tailwindcss";
 
-/* ── Brand color tokens (replaces oklch) ── */
 :root {
-  --brand:        #3d4f6e;
-  --brand-hover:  #4a5f83;
-  --brand-light:  #eef2f8;
-  --brand-border: #c5d2e8;
+  --brand:        #4f46e5;
+  --brand-hover:  #4338ca;
+  --brand-light:  #eef2ff;
+  --brand-border: #c7d2fe;
 }
 
 /* ── Animations ── */

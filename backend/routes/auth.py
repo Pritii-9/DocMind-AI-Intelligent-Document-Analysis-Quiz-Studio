@@ -61,7 +61,11 @@ def _gen_invite_code() -> str:
 
 
 def _send_email(to: str, subject: str, body: str):
-    """Simple synchronous SMTP send — runs in a background thread from endpoint."""
+    """Synchronous SMTP send with console fallback — runs in a background thread."""
+    if not settings.MAIL_USERNAME or not settings.MAIL_PASSWORD:
+        print(f"[AUTH DEV EMAIL] To: {to} | Subject: {subject} | Content: {body}")
+        return
+
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = settings.MAIL_USERNAME
@@ -72,8 +76,11 @@ def _send_email(to: str, subject: str, body: str):
                 smtp.starttls()
             smtp.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
             smtp.sendmail(settings.MAIL_USERNAME, [to], msg.as_string())
+            print(f"[MAIL SENT] Successfully delivered to {to}")
     except Exception as e:
-        print(f"[MAIL ERROR] {e}")
+        print(f"[MAIL ERROR] Failed sending to {to}: {e}")
+        # Always output to server console as fallback so the user/admin is never blocked
+        print(f"[FALLBACK LOG] To: {to} | Content: {body}")
 
 
 def _send_email_bg(to: str, subject: str, body: str):
@@ -90,6 +97,13 @@ class StartSignupIn(BaseModel):
 
 class UpdateProfileIn(BaseModel):
     name: str
+
+
+class UpdateBrandingIn(BaseModel):
+    name: str | None = None
+    tagline: str | None = None
+    logo_url: str | None = None
+    website_url: str | None = None
 
 
 class CompleteSignupIn(BaseModel):
@@ -276,6 +290,51 @@ def update_profile(body: UpdateProfileIn, user: dict = Depends(get_current_user)
     return {"msg": "Profile updated successfully", "name": name}
 
 
+@router.get("/branding")
+def get_branding():
+    """Public endpoint to fetch company branding for workspace and apply portal."""
+    db = get_db()
+    doc = db.workspace_branding.find_one({"_id": "default"})
+    if doc:
+        return {
+            "name": doc.get("name", "HireMind AI"),
+            "tagline": doc.get("tagline", "Autonomous Tech Candidate Screening & Intelligence"),
+            "logo_url": doc.get("logo_url"),
+            "website_url": doc.get("website_url", ""),
+        }
+    return {
+        "name": "HireMind AI",
+        "tagline": "Autonomous Tech Candidate Screening & Intelligence",
+        "logo_url": None,
+        "website_url": "",
+    }
+
+
+@router.patch("/branding")
+def update_branding(body: UpdateBrandingIn, user: dict = Depends(get_current_user)):
+    """Admin endpoint to customize company branding, logo, and tagline."""
+    db = get_db()
+    update_data = {}
+    if body.name is not None:
+        update_data["name"] = body.name.strip()
+    if body.tagline is not None:
+        update_data["tagline"] = body.tagline.strip()
+    if body.logo_url is not None:
+        update_data["logo_url"] = body.logo_url
+    if body.website_url is not None:
+        update_data["website_url"] = body.website_url.strip()
+
+    update_data["updated_by"] = user["sub"]
+    update_data["updated_at"] = datetime.now(timezone.utc)
+
+    db.workspace_branding.update_one(
+        {"_id": "default"},
+        {"$set": update_data},
+        upsert=True,
+    )
+    return {"msg": "Company branding updated successfully", "branding": update_data}
+
+
 @router.get("/users")
 def get_users(admin: dict = Depends(require_admin)):
     db = get_db()
@@ -311,10 +370,11 @@ def invite_member(body: InviteMemberIn, admin: dict = Depends(require_admin)):
         "invited_by": admin_email, "workspace_owner": workspace,
         "created_at": datetime.now(timezone.utc),
     })
+    frontend_base = os.environ.get("FRONTEND_URL", "https://hiremind-ai-gules.vercel.app")
     _send_email_bg(
-        email, "You've been invited",
-        f"Hello {body.name}, your invite code is: {code}\n\n"
-        f"Join at: http://localhost:5173/?invite={code}&email={email}",
+        email, "You've been invited to HireMind AI",
+        f"Hello {body.name},\n\nYour invite code is: {code}\n\n"
+        f"Join your workspace at: {frontend_base}/?invite={code}&email={email}",
     )
     return {"msg": "Invitation sent!", "code": code}
 

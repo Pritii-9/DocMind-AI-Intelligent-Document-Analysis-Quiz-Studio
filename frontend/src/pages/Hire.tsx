@@ -18,11 +18,13 @@ import {
   XCircle,
   Loader2,
   ChevronRight,
+  ChevronDown,
   Code2,
   MessageSquareCode,
   GitFork,
   Trophy,
   ClipboardList,
+  Zap,
 } from "lucide-react";
 import api from "../api/client";
 
@@ -195,66 +197,67 @@ export default function Hire({ initialJob }: { initialJob?: JobOpening | null })
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+    <div className="max-w-5xl mx-auto px-8 py-8 space-y-6 font-[Inter,system-ui,sans-serif]">
       {/* ── Page header ── */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <BriefcaseBusiness size={22} className="text-[var(--brand)]" />
-          <h1 className="text-2xl font-bold text-slate-900">HireMind</h1>
-          <span className="text-xs font-semibold bg-[var(--brand-light)] text-[var(--brand)] px-2 py-0.5 rounded-full">
-            Tech Hiring Agent
-          </span>
-        </div>
-        <p className="text-sm text-slate-500">
-          AI-powered candidate screening for startups — resume + GitHub + LLM scoring in seconds.
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Quick Screen</h1>
+        <p className="text-xs text-slate-500 mt-1">
+          On-Demand Candidate Evaluation
         </p>
       </div>
 
-      {/* ── Input form ── */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-5">
-        {/* Job Description with Role Dropdown */}
+      {/* ── Input form canvas ── */}
+      <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-5">
+        {/* Row 1: Job Description with Role Dropdown */}
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
               Job Description *
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-500 font-medium">Select Open Role:</span>
-              <select
-                value={selectedJobId}
-                onChange={(e) => handleSelectJob(e.target.value)}
-                className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-              >
-                <option value="">-- Custom Job Description --</option>
-                {jobs.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.title} ({j.experience})
-                  </option>
-                ))}
-              </select>
+              <span className="text-[11px] text-slate-400 font-medium">Select Open Role:</span>
+              <div className="relative inline-flex items-center">
+                <select
+                  value={selectedJobId}
+                  onChange={(e) => handleSelectJob(e.target.value)}
+                  className="h-8 pl-3 pr-8 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-lg appearance-none focus:outline-none focus:border-slate-400 transition cursor-pointer"
+                >
+                  <option value="">-- Custom Job Description --</option>
+                  {jobs.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.title} ({j.experience})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={13}
+                  className="absolute right-2.5 text-slate-400 pointer-events-none"
+                />
+              </div>
             </div>
           </div>
           <textarea
             value={jd}
             onChange={(e) => setJd(e.target.value)}
             placeholder="e.g. Senior Full-Stack Engineer — 3+ years React/FastAPI, experience with AWS, REST APIs, SQL databases..."
-            className="w-full h-32 px-3 py-2.5 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-slate-800 placeholder-slate-400 transition"
+            className="w-full h-28 px-3.5 py-2.5 text-xs border border-slate-200 rounded-lg resize-none focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-slate-900 placeholder:text-slate-400 transition"
           />
         </div>
 
+        {/* Row 2: Side-by-Side Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Resume upload */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
               Resume PDF *
             </label>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-slate-200 rounded-lg cursor-pointer hover:border-[var(--brand)] hover:bg-[var(--brand-light)] transition group"
+              className="flex items-center gap-3 px-3.5 py-2.5 border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition group"
             >
-              <Upload size={16} className="text-slate-400 group-hover:text-[var(--brand)]" />
-              <span className="text-sm text-slate-500 group-hover:text-[var(--brand)] truncate">
-                {resumeFile ? resumeFile.name : "Click to upload resume PDF"}
+              <Upload size={15} className="text-slate-400 group-hover:text-slate-700" />
+              <span className="text-xs text-slate-600 group-hover:text-slate-900 truncate">
+                {resumeFile ? resumeFile.name : "Click to upload candidate resume (PDF)"}
               </span>
             </div>
             <input
@@ -268,50 +271,52 @@ export default function Hire({ initialJob }: { initialJob?: JobOpening | null })
 
           {/* GitHub username */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
               GitHub Username (optional)
             </label>
-            <div className="flex items-center gap-2 px-3 py-2.5 border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-[var(--brand)] focus-within:border-transparent transition">
-              <Github size={15} className="text-slate-400 shrink-0" />
+            <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 transition">
+              <Github size={14} className="text-slate-400 shrink-0" />
               <input
                 value={githubUsername}
                 onChange={(e) => setGithubUsername(e.target.value)}
                 placeholder="e.g. torvalds"
-                className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
+                className="flex-1 text-xs bg-transparent outline-none text-slate-900 placeholder:text-slate-400"
               />
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Fetches public repos, languages & activity via GitHub API.
+              Fetches repositories, languages, and commit history.
             </p>
           </div>
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            <XCircle size={15} />
+          <div className="flex items-center gap-2 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+            <XCircle size={14} />
             {error}
           </div>
         )}
 
         {/* Submit button */}
-        <button
-          onClick={handleScreen}
-          disabled={screening || loadingQuestions}
-          className="flex items-center gap-2 px-6 py-2.5 bg-[var(--brand)] hover:bg-[var(--brand-dark,#4338ca)] text-white text-sm font-semibold rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-        >
-          {screening ? (
-            <>
-              <Loader2 size={15} className="animate-spin" />
-              Screening candidate…
-            </>
-          ) : (
-            <>
-              <Star size={15} />
-              Screen Candidate
-            </>
-          )}
-        </button>
+        <div className="pt-2">
+          <button
+            onClick={handleScreen}
+            disabled={screening || loadingQuestions}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-black text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs active:scale-[0.99]"
+          >
+            {screening ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Screening candidate profile...</span>
+              </>
+            ) : (
+              <>
+                <Star size={14} />
+                <span>Screen Candidate</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ── Results ── */}

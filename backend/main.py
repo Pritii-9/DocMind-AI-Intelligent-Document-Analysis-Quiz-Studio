@@ -17,14 +17,19 @@ from routes.quiz import router as quiz_router
 from hire.routes import router as hire_router  # HireMind - Tech Hiring Agent
 
 app = FastAPI(
-    title="DocMind AI + HireMind API",
+    title="HireMind AI API",
     version="3.0.0",
-    description="DocMind AI Enterprise (RAG/Quiz) + HireMind Tech Hiring Agent — powered by LangChain, Groq & pgvector",
+    description="HireMind AI — Autonomous Tech Hiring Agent & ATS Intelligence",
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 allowed_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
-allowed_origins += ["http://localhost:5173", "http://localhost:3000", "https://pdf-streaming.vercel.app"]
+allowed_origins += [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://hiremind-ai-gules.vercel.app",
+    "https://pdf-streaming.vercel.app",
+]
 
 app.add_middleware(
     CORSMiddleware,

@@ -8,11 +8,14 @@ import {
   FileText,
   Send,
   Building2,
+  ChevronDown,
 } from "lucide-react";
 import api from "../api/client";
 import { getJobOpenings, type JobOpening } from "../utils/jobStorage";
+import { useCompany } from "../context/CompanyContext";
 
 export default function CandidateApply() {
+  const { branding } = useCompany();
   const [jobs, setJobs] = useState<JobOpening[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [candidateName, setCandidateName] = useState("");
@@ -22,6 +25,7 @@ export default function CandidateApply() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,6 +54,20 @@ export default function CandidateApply() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        setErrorMsg("Please upload a PDF resume.");
+        return;
+      }
+      setResumeFile(file);
+      setErrorMsg("");
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
       if (!file.name.toLowerCase().endsWith(".pdf")) {
         setErrorMsg("Please upload a PDF resume.");
         return;
@@ -145,8 +163,11 @@ export default function CandidateApply() {
       setSubmitted(true);
     } catch (err: any) {
       console.error(err);
+      const isColdStart = err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error");
       setErrorMsg(
-        err?.response?.data?.detail || "Failed to submit application. Please verify your details."
+        isColdStart
+          ? "Cloud server waking up from sleep. Please wait 15 seconds and click Submit again!"
+          : (err?.response?.data?.detail || "Failed to submit application. Please verify your details.")
       );
     } finally {
       setSubmitting(false);
@@ -156,21 +177,35 @@ export default function CandidateApply() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-[Inter,system-ui,sans-serif]">
       {/* Top Bar */}
-      <header className="border-b border-slate-200 bg-white/90 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-slate-200 bg-white/90 backdrop-blur-md px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-            HM
+          <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold text-xs ring-1 ring-slate-800 shadow-xs overflow-hidden">
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt={branding.name} className="w-full h-full object-contain p-1" />
+            ) : (
+              branding.name.slice(0, 2).toUpperCase() || "HM"
+            )}
           </div>
           <div>
-            <h1 className="font-bold text-slate-900 text-[15px] leading-tight">HireMind Careers</h1>
-            <p className="text-[11px] text-slate-500">Autonomous Talent Evaluation</p>
+            <h1 className="font-bold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
+              <span>{branding.name} Careers</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PORTAL</span>
+            </h1>
+            <p className="text-[11px] text-slate-500">{branding.tagline || "Autonomous Talent Evaluation"}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Accepting Applications
           </span>
+          <a
+            href="/"
+            className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors hidden sm:inline-flex items-center gap-1"
+          >
+            <span>Recruiter portal</span>
+            <span aria-hidden="true">→</span>
+          </a>
         </div>
       </header>
 
@@ -183,7 +218,7 @@ export default function CandidateApply() {
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Application Received!</h2>
             <p className="text-sm text-slate-600 max-w-md mx-auto mb-6">
-              Thank you, <strong>{candidateName}</strong>. Your resume and engineering profile have been processed. The hiring team has been notified.
+              Thank you, <strong>{candidateName}</strong>. Your engineering profile has been submitted to <strong>{branding.name}</strong>. The hiring team has been notified.
             </p>
             <button
               onClick={() => {
@@ -205,20 +240,26 @@ export default function CandidateApply() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
                   <Building2 size={14} />
-                  Applying for Role
+                  <span>{branding.name} • Open Position</span>
                 </div>
                 {jobs.length > 1 && (
-                  <select
-                    value={selectedJobId}
-                    onChange={(e) => setSelectedJobId(e.target.value)}
-                    className="text-xs bg-slate-800 text-indigo-200 border border-indigo-700/60 rounded-lg px-2.5 py-1 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer"
-                  >
-                    {jobs.map((j) => (
-                      <option key={j.id} value={j.id} className="bg-slate-900 text-white">
-                        {j.title}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative inline-flex items-center">
+                    <select
+                      value={selectedJobId}
+                      onChange={(e) => setSelectedJobId(e.target.value)}
+                      className="h-7.5 pl-3 pr-7 text-xs bg-slate-800/90 hover:bg-slate-800 text-indigo-100 border border-indigo-700/50 hover:border-indigo-600 rounded-lg appearance-none font-medium focus:outline-none focus:ring-1.5 focus:ring-indigo-400 transition cursor-pointer"
+                    >
+                      {jobs.map((j) => (
+                        <option key={j.id} value={j.id} className="bg-slate-900 text-white">
+                          {j.title}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={12}
+                      className="absolute right-2 text-indigo-300 pointer-events-none"
+                    />
+                  </div>
                 )}
               </div>
               <h2 className="text-xl font-bold">{activeJob?.title || "Software Engineer"}</h2>
@@ -293,7 +334,14 @@ export default function CandidateApply() {
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/20 transition flex flex-col items-center justify-center gap-2"
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 ${
+                    isDragging
+                      ? "border-indigo-600 bg-indigo-50/50 scale-[1.01]"
+                      : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/20"
+                  }`}
                 >
                   <input
                     ref={fileInputRef}
@@ -346,7 +394,7 @@ export default function CandidateApply() {
 
       {/* Footer */}
       <footer className="text-center py-4 border-t border-slate-200 text-[11px] text-slate-400">
-        Powered by HireMind AI • Autonomous Recruitment & Technical Screening
+        Careers at {branding.name} • Powered by HireMind AI Candidate Intelligence
       </footer>
     </div>
   );
