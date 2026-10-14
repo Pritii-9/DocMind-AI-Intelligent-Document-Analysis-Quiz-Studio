@@ -8,7 +8,7 @@
  * 4. Trigger AI screening via /api/hire/screen
  * 5. View score card, reason, GitHub stats, and generated screening questions
  */
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Github,
   Upload,
@@ -85,14 +85,41 @@ function difficultyBadge(difficulty: string) {
   return map[difficulty] || "bg-slate-100 text-slate-600";
 }
 
+import { getJobOpenings, type JobOpening } from "../utils/jobStorage";
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function Hire() {
+export default function Hire({ initialJob }: { initialJob?: JobOpening | null }) {
+  // Job openings list
+  const [jobs, setJobs] = useState<JobOpening[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>(initialJob?.id || "");
+
   // Form state
-  const [jd, setJd] = useState("");
+  const [jd, setJd] = useState(initialJob?.description || "");
   const [githubUsername, setGithubUsername] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const list = getJobOpenings();
+    setJobs(list);
+    if (initialJob) {
+      setSelectedJobId(initialJob.id);
+      setJd(initialJob.description);
+    } else if (list.length > 0 && !jd) {
+      // Default to first open job
+      setSelectedJobId(list[0].id);
+      setJd(list[0].description);
+    }
+  }, [initialJob]);
+
+  const handleSelectJob = (jobId: string) => {
+    setSelectedJobId(jobId);
+    const found = jobs.find((j) => j.id === jobId);
+    if (found) {
+      setJd(found.description);
+    }
+  };
 
   // Loading states
   const [screening, setScreening] = useState(false);
@@ -185,11 +212,28 @@ export default function Hire() {
 
       {/* ── Input form ── */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-5">
-        {/* Job Description */}
+        {/* Job Description with Role Dropdown */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
-            Job Description *
-          </label>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+              Job Description *
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-500 font-medium">Select Open Role:</span>
+              <select
+                value={selectedJobId}
+                onChange={(e) => handleSelectJob(e.target.value)}
+                className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="">-- Custom Job Description --</option>
+                {jobs.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.title} ({j.experience})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <textarea
             value={jd}
             onChange={(e) => setJd(e.target.value)}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Upload, Trash2, Eye, RefreshCw, X, CloudUpload, CheckCircle, Clock, AlertCircle, Loader, Search, Sparkles, Tag, ArrowRight } from "lucide-react";
+import { FileText, Upload, Trash2, Eye, RefreshCw, X, CloudUpload, CheckCircle, Clock, AlertCircle, Loader, Search, Sparkles, Tag } from "lucide-react";
 import api from "../api/client";
 import { useToast } from "../context/ToastContext";
 

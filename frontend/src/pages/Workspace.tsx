@@ -2,32 +2,28 @@ import { useState } from "react";
 import { User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import Dashboard from "../components/Dashboard";
-import Library from "../components/Library";
-import Team from "../components/Team";
-import AiChat from "../components/AiChat";
-import QuizView from "../components/Quiz";
-import SystemTelemetry from "../components/SystemTelemetry";
 import Sidebar from "../components/Sidebar";
 import type { Tab } from "../components/Sidebar";
 import SignOutModal from "../components/SignOutModal";
 import ProfileModal from "../components/ProfileModal";
+import CandidatePipeline from "../components/CandidatePipeline";
 import Hire from "./Hire";
+import ShareableApplyTab from "../components/ShareableApplyTab";
+import JobOpeningsManager from "../components/JobOpeningsManager";
+import type { JobOpening } from "../utils/jobStorage";
 
 const TAB_TITLES: Record<Tab, string> = {
-  dashboard: "Dashboard",
-  library:   "Library",
-  chat:      "Ask AI",
-  quiz:      "Quizzes",
-  hire:      "HireMind — Tech Hiring Agent",
-  team:      "Team",
-  system:    "System Telemetry",
+  pipeline: "Candidate Pipeline (ATS)",
+  jobs:     "Job Openings & Requisitions",
+  hire:     "Quick Screen — On-Demand Evaluation",
+  apply:    "Public Apply Portal",
 };
 
 export default function Workspace() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<Tab>("pipeline");
+  const [selectedJobForScreen, setSelectedJobForScreen] = useState<JobOpening | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -88,13 +84,17 @@ export default function Workspace() {
 
         {/* Tab content */}
         <div className="flex-1">
-          {tab === "dashboard" && <Dashboard onNavigate={setTab} />}
-          {tab === "library"   && <Library />}
-          {tab === "chat"      && <AiChat />}
-          {tab === "quiz"      && <QuizView />}
-          {tab === "hire"      && <Hire />}
-          {tab === "team"      && <Team />}
-          {tab === "system"    && <SystemTelemetry />}
+          {tab === "pipeline" && <CandidatePipeline onSwitchToScreen={() => setTab("hire")} />}
+          {tab === "jobs"     && (
+            <JobOpeningsManager
+              onSelectRoleForScreen={(job) => {
+                setSelectedJobForScreen(job);
+                setTab("hire");
+              }}
+            />
+          )}
+          {tab === "hire"     && <Hire initialJob={selectedJobForScreen} />}
+          {tab === "apply"    && <ShareableApplyTab />}
         </div>
       </main>
     </div>

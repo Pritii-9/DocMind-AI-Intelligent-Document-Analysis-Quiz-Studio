@@ -1,16 +1,13 @@
-import { LayoutDashboard, FileText, Bot, BookOpen, Users, LogOut, ChevronLeft, ChevronRight, Cpu, BriefcaseBusiness } from "lucide-react";
+import { Users, Briefcase, BriefcaseBusiness, Share2, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-export type Tab = "dashboard" | "library" | "chat" | "team" | "quiz" | "system" | "hire";
+export type Tab = "pipeline" | "jobs" | "hire" | "apply";
 
-const NAV: { id: Tab; label: string; icon: any }[] = [
-  { id: "dashboard", label: "Dashboard",  icon: LayoutDashboard },
-  { id: "library",   label: "Library",    icon: FileText },
-  { id: "chat",      label: "Ask AI",     icon: Bot },
-  { id: "quiz",      label: "Quizzes",    icon: BookOpen },
-  { id: "hire",      label: "HireMind",   icon: BriefcaseBusiness },
-  { id: "team",      label: "Team",       icon: Users },
-  { id: "system",    label: "Telemetry",  icon: Cpu },
+const NAV: { id: Tab; label: string; icon: any; badge?: string }[] = [
+  { id: "pipeline", label: "Candidate Pipeline", icon: Users },
+  { id: "jobs",     label: "Job Openings",       icon: Briefcase },
+  { id: "hire",     label: "Quick Screen",       icon: BriefcaseBusiness },
+  { id: "apply",    label: "Public Apply Portal",icon: Share2 },
 ];
 
 interface SidebarProps {
@@ -24,22 +21,31 @@ interface SidebarProps {
 
 export default function Sidebar({ tab, setTab, collapsed, setCollapsed, onOpenSignOut, onOpenProfile }: SidebarProps) {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
 
   return (
     <aside
       className="relative z-20 flex flex-col bg-white border-r border-slate-200 shrink-0 transition-all duration-200"
-      style={{ width: collapsed ? 64 : 220 }}
+      style={{ width: collapsed ? 64 : 230 }}
     >
       {/* Brand header */}
       <div
         className="h-[60px] flex items-center border-b border-slate-100 shrink-0"
-        style={{ justifyContent: collapsed ? "center" : "space-between", padding: collapsed ? "0 14px" : "0 16px 0 20px" }}
+        style={{ justifyContent: collapsed ? "center" : "space-between", padding: collapsed ? "0 14px" : "0 16px 0 18px" }}
       >
         <div className="flex items-center gap-2.5">
-          <img src="/logo.svg" alt="DocMind Logo" className="w-8 h-8 rounded-lg shrink-0" />
+          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+            HM
+          </div>
           {!collapsed && (
-            <span className="font-extrabold text-[15px] tracking-tight text-slate-900">DocMind</span>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-[15px] tracking-tight text-slate-900 leading-none">HireMind</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                  AI
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium leading-none mt-1">Tech Hiring Agent</p>
+            </div>
           )}
         </div>
         {!collapsed && (
@@ -69,7 +75,7 @@ export default function Sidebar({ tab, setTab, collapsed, setCollapsed, onOpenSi
             Workspace
           </p>
         )}
-        {NAV.filter(n => isAdmin || n.id !== "team").map(({ id, label, icon: Icon }) => {
+        {NAV.map(({ id, label, icon: Icon }) => {
           const active = tab === id;
           return (
             <button
