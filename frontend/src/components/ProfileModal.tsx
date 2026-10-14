@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, CheckCircle2, X, Save, Building, Settings, ShieldCheck } from "lucide-react";
+import { User, CheckCircle2, X, Save, Building, Settings } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useCompany } from "../context/CompanyContext";

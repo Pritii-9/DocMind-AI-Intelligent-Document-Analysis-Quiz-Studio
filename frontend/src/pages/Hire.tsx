@@ -12,7 +12,6 @@ import { useState, useRef, useEffect } from "react";
 import {
   Github,
   Upload,
-  BriefcaseBusiness,
   Star,
   CheckCircle2,
   XCircle,
@@ -24,7 +23,6 @@ import {
   GitFork,
   Trophy,
   ClipboardList,
-  Zap,
 } from "lucide-react";
 import api from "../api/client";
 
