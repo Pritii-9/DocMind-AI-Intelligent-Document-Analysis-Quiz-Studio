@@ -182,13 +182,16 @@ def _format_github_for_prompt(github_data: dict) -> str:
 # ── 2. Technical Screening Questions ─────────────────────────────────────────
 
 QUESTIONS_SYSTEM = (
-    "You are an expert technical interviewer at a startup. "
-    "You craft specific, project-grounded screening questions — NOT generic ones. "
+    "You are an expert technical interviewer and principal engineer at a tech startup. "
+    "You craft specific, project-grounded screening questions covering three critical pillars: "
+    "1) Core Language Fundamentals (e.g., Python list comprehensions, generators, memory, GIL; or JS/TS event loop, closures), "
+    "2) Database & SQL Query Optimization (e.g., indexing strategies, join queries, transaction isolation), "
+    "3) System Design & Architectural Thinking (e.g., caching with Redis, rate limiting, microservices, concurrency). "
     "Your questions reference actual projects, technologies, and decisions from the candidate's resume. "
     "Respond ONLY with valid JSON — no markdown, no extra text."
 )
 
-QUESTIONS_PROMPT_TEMPLATE = """Generate 3 highly specific technical screening questions for this candidate.
+QUESTIONS_PROMPT_TEMPLATE = """Generate exactly 3 targeted technical screening questions for this candidate based on their resume and the JD.
 
 JOB DESCRIPTION:
 {jd}
@@ -197,28 +200,43 @@ CANDIDATE RESUME:
 {resume_text}
 
 Rules:
-- Reference actual projects, tools, or decisions mentioned in the resume by name
-- Each question should reveal depth of understanding, not just surface knowledge
-- Tailor to the JD's requirements while grounding in candidate's real experience
-- Example of GOOD question: "In your Luminary project using WebSockets, how did you handle reconnection logic and backpressure?"
-- Example of BAD question: "What is React?" (too generic)
+You MUST generate exactly 3 questions, each under one of these specific technical categories:
 
-Return ONLY this JSON:
+1. Category "Core Language Fundamentals":
+   - Target candidate's primary programming language (e.g., for Python: ask about list comprehensions vs generators, memory efficiency, lambda/closures, GIL, typing/decorators; for JavaScript/TypeScript: event loop, async microtasks, closures, prototyping).
+   - Ground the question in a project from their resume.
+   - Example: "In your project using Python, when would you favor a generator expression over a list comprehension, and how does memory allocation differ?"
+
+2. Category "Database & SQL Optimization":
+   - Target SQL queries, query execution plans, indexing strategies (B-Tree, GIN, composite indexes), transactions, or database scaling.
+   - Example: "In your PostgreSQL queries, how did you analyze slow query performance using EXPLAIN ANALYZE and design composite indexes to avoid table scans?"
+
+3. Category "System Design & Architecture":
+   - Target system design, distributed caching (Redis/Memcached), rate limiting, message queues, async background workers, or high-concurrency throughput.
+   - Example: "How would you architect a distributed rate limiter or caching strategy to handle 10,000 requests/second with minimal latency?"
+
+Return ONLY this JSON array with exactly 3 objects:
 [
   {{
-    "question": "<specific question referencing candidate's actual work>",
-    "topic": "<topic area, e.g. 'System Design', 'Backend Architecture', 'DevOps'>",
-    "difficulty": "<Easy | Medium | Hard>"
+    "category": "Core Language Fundamentals",
+    "topic": "<e.g. Python List Comprehensions & Generator Memory>",
+    "question": "<specific technical question grounded in their primary language and work>",
+    "difficulty": "<Easy | Medium | Hard>",
+    "evaluation_criteria": "<1-2 sentence hint on what a strong senior answer must include>"
   }},
   {{
-    "question": "...",
-    "topic": "...",
-    "difficulty": "..."
+    "category": "Database & SQL Optimization",
+    "topic": "<e.g. SQL Indexing & Query Execution Plans>",
+    "question": "<specific technical question on SQL / database optimization>",
+    "difficulty": "<Medium | Hard>",
+    "evaluation_criteria": "<1-2 sentence hint on what to look for in candidate answer>"
   }},
   {{
-    "question": "...",
-    "topic": "...",
-    "difficulty": "..."
+    "category": "System Design & Architecture",
+    "topic": "<e.g. Distributed Caching & High-Concurrency Throughput>",
+    "question": "<specific system design & architectural thinking question>",
+    "difficulty": "<Medium | Hard>",
+    "evaluation_criteria": "<1-2 sentence hint on what architectural tradeoffs to assess>"
   }}
 ]
 """

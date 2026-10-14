@@ -2,13 +2,23 @@ import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Workspace from "./pages/Workspace";
 import CandidateApply from "./pages/CandidateApply";
+import SharedEvalReport from "./pages/SharedEvalReport";
 
 export default function App() {
   const { isAuthenticated } = useAuth();
   const isApplyRoute = window.location.pathname.startsWith("/apply");
+  const isEvalRoute =
+    window.location.pathname.startsWith("/eval") ||
+    window.location.pathname.startsWith("/share-eval") ||
+    window.location.search.includes("eval=") ||
+    window.location.search.includes("token=");
 
   if (isApplyRoute) {
     return <CandidateApply />;
+  }
+
+  if (isEvalRoute) {
+    return <SharedEvalReport />;
   }
 
   return (

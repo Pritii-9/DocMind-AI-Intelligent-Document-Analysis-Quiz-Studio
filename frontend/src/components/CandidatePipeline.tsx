@@ -8,7 +8,9 @@ import {
   ChevronDown,
   ChevronUp,
   PlusCircle,
+  Share2,
 } from "lucide-react";
+import ShareEvalModal from "./ShareEvalModal";
 
 interface CandidateRecord {
   id: string;
@@ -80,6 +82,7 @@ export default function CandidatePipeline({ onSwitchToScreen }: { onSwitchToScre
   const [filter, setFilter] = useState<"all" | "shortlisted" | "reviewed">("all");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sharingCandidate, setSharingCandidate] = useState<CandidateRecord | null>(null);
 
   useEffect(() => {
     try {
@@ -310,6 +313,16 @@ export default function CandidatePipeline({ onSwitchToScreen }: { onSwitchToScre
 
                     <button
                       type="button"
+                      onClick={() => setSharingCandidate(candidate)}
+                      title="Share 30-minute evaluation link"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 transition cursor-pointer shrink-0"
+                    >
+                      <Share2 size={12} />
+                      <span>Share</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setExpandedId(isExpanded ? null : candidate.id)}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 transition cursor-pointer shrink-0"
                     >
@@ -378,6 +391,12 @@ export default function CandidatePipeline({ onSwitchToScreen }: { onSwitchToScre
           })
         )}
       </div>
+
+      <ShareEvalModal
+        isOpen={Boolean(sharingCandidate)}
+        onClose={() => setSharingCandidate(null)}
+        candidate={sharingCandidate}
+      />
     </div>
   );
 }

@@ -12,6 +12,8 @@ All responses are n8n-compatible JSON.
 import io
 import json
 import re
+import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -219,4 +221,77 @@ async def log_to_sheets_endpoint(body: LogToSheetsIn):
         "message": result["message"],
         # Include row for n8n downstream nodes
         "logged_row": result.get("row", []),
+    }
+
+
+# ── 4. Shareable Time-Bound Candidate Evaluations ─────────────────────────────
+
+SHARED_EVALS: dict[str, dict] = {}
+
+
+class CreateShareEvalIn(BaseModel):
+    candidate: dict
+    duration_minutes: int = 30
+
+
+@router.post(
+    "/create-share-eval",
+    summary="Create a secure, time-bound shareable candidate evaluation report",
+)
+def create_share_eval_endpoint(body: CreateShareEvalIn):
+    """
+    Creates a temporary shareable candidate assessment link that auto-expires
+    (default: 30 minutes) for hiring managers and team members.
+    """
+    eval_id = secrets.token_urlsafe(12)
+    duration = max(5, min(body.duration_minutes, 1440))  # between 5 min and 24 hours
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=duration)
+
+    doc = {
+        "eval_id": eval_id,
+        "candidate": body.candidate,
+        "duration_minutes": duration,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": expires_at.isoformat(),
+        "expires_at_epoch": int(expires_at.timestamp()),
+    }
+    SHARED_EVALS[eval_id] = doc
+
+    return {
+        "status": "success",
+        "eval_id": eval_id,
+        "duration_minutes": duration,
+        "expires_at": expires_at.isoformat(),
+        "expires_at_epoch": int(expires_at.timestamp()),
+    }
+
+
+@router.get(
+    "/shared-eval/{eval_id}",
+    summary="Retrieve shared candidate evaluation if not expired",
+)
+def get_shared_eval_endpoint(eval_id: str):
+    """
+    Retrieves the shared candidate evaluation if within the active window (e.g., 30 min).
+    Returns expired status if the time window has passed.
+    """
+    doc = SHARED_EVALS.get(eval_id)
+    if not doc:
+        raise HTTPException(404, "Evaluation report not found or link has expired.")
+
+    now_epoch = int(datetime.now(timezone.utc).timestamp())
+    expires_at_epoch = doc.get("expires_at_epoch", 0)
+
+    if now_epoch > expires_at_epoch:
+        return {
+            "expired": True,
+            "message": f"This screening assessment expired after {doc.get('duration_minutes', 30)} minutes.",
+        }
+
+    return {
+        "expired": False,
+        "candidate": doc["candidate"],
+        "duration_minutes": doc.get("duration_minutes", 30),
+        "expires_at": doc["expires_at"],
+        "seconds_remaining": max(0, expires_at_epoch - now_epoch),
     }

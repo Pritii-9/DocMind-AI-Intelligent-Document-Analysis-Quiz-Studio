@@ -23,8 +23,10 @@ import {
   GitFork,
   Trophy,
   ClipboardList,
+  Share2,
 } from "lucide-react";
 import api from "../api/client";
+import ShareEvalModal from "../components/ShareEvalModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,6 +131,7 @@ export default function Hire({ initialJob }: { initialJob?: JobOpening | null })
   const [result, setResult] = useState<ScreenResponse | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [error, setError] = useState<string>("");
+  const [sharingCandidate, setSharingCandidate] = useState<any>(null);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -362,12 +365,39 @@ export default function Hire({ initialJob }: { initialJob?: JobOpening | null })
                     href={`https://github.com/${result.candidate.github_username}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1 justify-end mt-1 hover:text-[var(--brand)] transition"
+                    className="flex items-center gap-1 justify-end mt-1 hover:text-slate-900 transition"
                   >
                     <Github size={11} />
                     {result.candidate.github_username}
                   </a>
                 )}
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentJobTitle =
+                        jobs.find((j) => j.id === selectedJobId)?.title ||
+                        initialJob?.title ||
+                        "Software Engineer Candidate";
+                      setSharingCandidate({
+                        name: result.candidate.resume_file.replace(/\.pdf$/i, ""),
+                        role: currentJobTitle,
+                        score: s.score,
+                        recommendation: s.recommendation,
+                        reason: s.reason,
+                        skills: s.skills_found || [],
+                        questions: questions,
+                        github: result.candidate.github_username,
+                        github_data: result.github_data,
+                        appliedAt: new Date().toISOString(),
+                      });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition cursor-pointer"
+                  >
+                    <Share2 size={12} />
+                    <span>Share 30m Link</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -530,6 +560,12 @@ export default function Hire({ initialJob }: { initialJob?: JobOpening | null })
           </div>
         </div>
       )}
+
+      <ShareEvalModal
+        isOpen={Boolean(sharingCandidate)}
+        onClose={() => setSharingCandidate(null)}
+        candidate={sharingCandidate}
+      />
     </div>
   );
 }

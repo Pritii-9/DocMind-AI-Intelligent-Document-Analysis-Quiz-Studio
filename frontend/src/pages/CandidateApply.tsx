@@ -9,6 +9,7 @@ import {
   Send,
   Building2,
   ChevronDown,
+  ArrowRight,
 } from "lucide-react";
 import api from "../api/client";
 import { getJobOpenings, type JobOpening } from "../utils/jobStorage";
@@ -217,51 +218,55 @@ export default function CandidateApply() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-[Inter,system-ui,sans-serif]">
-      {/* Top Bar */}
-      <header className="border-b border-slate-200 bg-white/90 backdrop-blur-md px-6 py-3.5 flex items-center justify-between">
+      {/* Top Header */}
+      <header className="h-14 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-20 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold text-xs ring-1 ring-slate-800 shadow-xs overflow-hidden">
+          <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs overflow-hidden shrink-0">
             {branding.logoUrl ? (
-              <img src={branding.logoUrl} alt={effectiveCompanyName} className="w-full h-full object-contain p-1" />
+              <img src={branding.logoUrl} alt={effectiveCompanyName} className="w-full h-full object-contain p-0.5" />
             ) : (
               effectiveCompanyName.slice(0, 2).toUpperCase() || "HM"
             )}
           </div>
-          <div>
-            <h1 className="font-bold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
-              <span>{effectiveCompanyName} Careers</span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">PORTAL</span>
-            </h1>
-            <p className="text-[11px] text-slate-500">{branding.tagline || "Autonomous Talent Evaluation"}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-semibold text-slate-900 text-sm tracking-tight truncate">
+              {effectiveCompanyName}
+            </span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 leading-none">
+              Careers
+            </span>
           </div>
         </div>
+
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Accepting Applications
           </span>
           <a
             href="/"
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors hidden sm:inline-flex items-center gap-1"
+            className="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors hidden sm:inline-flex items-center gap-1"
           >
             <span>Recruiter portal</span>
-            <span aria-hidden="true">→</span>
+            <ArrowRight size={12} />
           </a>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-2xl w-full mx-auto px-4 py-8 flex-1">
+      {/* Main Content Container */}
+      <main className="max-w-2xl w-full mx-auto px-4 py-8 space-y-5 flex-1">
         {submitted ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
-            <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
-              <CheckCircle2 size={32} />
+          /* Confirmation Success Card */
+          <div className="bg-white rounded-xl border border-slate-200/90 p-8 text-center shadow-xs">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3.5 shadow-2xs">
+              <CheckCircle2 size={24} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Application Received!</h2>
-            <p className="text-sm text-slate-600 max-w-md mx-auto mb-6">
-              Thank you, <strong>{candidateName}</strong>. Your engineering profile has been submitted to <strong>{effectiveCompanyName}</strong> for the <strong>{activeJob?.title || "selected"}</strong> position. The hiring team has been notified.
+            <h2 className="text-lg font-bold text-slate-900 mb-1.5">Application Submitted</h2>
+            <p className="text-xs text-slate-600 max-w-md mx-auto mb-6 leading-relaxed">
+              Thank you, <strong>{candidateName}</strong>. Your profile and technical credentials have been successfully delivered to <strong>{effectiveCompanyName}</strong> for the <strong>{activeJob?.title || "selected"}</strong> role.
             </p>
             <button
+              type="button"
               onClick={() => {
                 setSubmitted(false);
                 setCandidateName("");
@@ -269,179 +274,212 @@ export default function CandidateApply() {
                 setGithubUrl("");
                 setResumeFile(null);
               }}
-              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition cursor-pointer"
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
             >
               Submit Another Application
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            {/* Position Header with Role Selector */}
-            <div className="border-b border-slate-100 p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-                <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
-                  <Building2 size={14} />
-                  <span>{effectiveCompanyName} • Open Position</span>
+          <>
+            {/* Position Information Card */}
+            <div className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  <Building2 size={13} className="text-slate-400" />
+                  <span>{effectiveCompanyName} • Active Opening</span>
                 </div>
+
                 {jobs.length > 1 && (
                   <div className="relative inline-flex items-center">
                     <select
                       value={selectedJobId}
                       onChange={(e) => setSelectedJobId(e.target.value)}
-                      className="h-7.5 pl-3 pr-7 text-xs bg-slate-800/90 hover:bg-slate-800 text-indigo-100 border border-indigo-700/50 hover:border-indigo-600 rounded-lg appearance-none font-medium focus:outline-none focus:ring-1.5 focus:ring-indigo-400 transition cursor-pointer"
+                      className="h-7 pl-2.5 pr-6 text-xs bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-md appearance-none font-medium focus:outline-none focus:border-slate-900 transition cursor-pointer"
                     >
                       {jobs.map((j) => (
-                        <option key={j.id} value={j.id} className="bg-slate-900 text-white">
+                        <option key={j.id} value={j.id}>
                           {j.title}
                         </option>
                       ))}
                     </select>
-                    <ChevronDown
-                      size={12}
-                      className="absolute right-2 text-indigo-300 pointer-events-none"
-                    />
+                    <ChevronDown size={11} className="absolute right-2 text-slate-400 pointer-events-none" />
                   </div>
                 )}
               </div>
-              <h2 className="text-xl font-bold">{activeJob?.title || "Software Engineer"}</h2>
-              <p className="text-slate-300 text-xs mt-1">
-                {activeJob?.department || "Engineering"} • {activeJob?.experience || "Full-time"} •{" "}
-                {activeJob?.skills?.join(", ") || "Python, React"}
-              </p>
-            </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {errorMsg && (
-                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
-                  <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {/* Name & Email Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={candidateName}
-                    onChange={(e) => setCandidateName(e.target.value)}
-                    placeholder="Ada Lovelace"
-                    className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={candidateEmail}
-                    onChange={(e) => setCandidateEmail(e.target.value)}
-                    placeholder="ada@example.com"
-                    className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors"
-                  />
+              <div>
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">
+                  {activeJob?.title || "Software Engineer"}
+                </h1>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
+                  <span className="font-medium text-slate-700">{activeJob?.department || "Engineering"}</span>
+                  <span className="text-slate-300">•</span>
+                  <span>{activeJob?.experience || "Full-time"}</span>
+                  <span className="text-slate-300">•</span>
+                  <span>Remote / Hybrid</span>
                 </div>
               </div>
 
-              {/* GitHub Profile */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  GitHub Profile (Optional but Recommended)
-                </label>
-                <div className="relative flex items-center">
-                  <Github size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={githubUrl}
-                    onChange={(e) => setGithubUrl(e.target.value)}
-                    placeholder="https://github.com/username or @username"
-                    className="w-full h-9 border border-slate-200 rounded-lg pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors"
-                  />
+              {activeJob?.skills && activeJob.skills.length > 0 && (
+                <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
+                  {activeJob.skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60"
+                    >
+                      {skill}
+                    </span>
+                  ))}
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Our AI evaluates repository architecture, commit velocity, and language proficiency.
+              )}
+            </div>
+
+            {/* Application Submission Form Card */}
+            <div className="bg-white rounded-xl border border-slate-200/90 p-6 shadow-xs">
+              <div className="mb-5 pb-3 border-b border-slate-100">
+                <h2 className="text-sm font-semibold text-slate-900">Candidate Information</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Complete the fields below to submit your profile for automated evaluation.
                 </p>
               </div>
 
-              {/* PDF Resume Drag & Drop Upload */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Resume / CV (PDF format) <span className="text-red-500">*</span>
-                </label>
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                    isDragging
-                      ? "border-indigo-500 bg-indigo-50/50"
-                      : resumeFile
-                      ? "border-emerald-300 bg-emerald-50/30"
-                      : "border-slate-200 hover:border-slate-400 hover:bg-slate-50"
-                  }`}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  {resumeFile ? (
-                    <div className="flex items-center gap-2 text-emerald-700 font-medium text-xs">
-                      <FileText size={18} className="text-emerald-600" />
-                      <span>{resumeFile.name} ({(resumeFile.size / 1024).toFixed(0)} KB)</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                        <Upload size={18} />
-                      </div>
-                      <p className="text-xs text-slate-600 font-medium">
-                        Click to upload your resume <span className="text-slate-400 font-normal">or drag & drop</span>
-                      </p>
-                      <p className="text-[10px] text-slate-400">PDF up to 10MB</p>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 active:bg-black text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Analyzing profile with HireMind AI...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={15} />
-                    <span>Submit Application</span>
-                  </>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {errorMsg && (
+                  <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                    <span>{errorMsg}</span>
+                  </div>
                 )}
-              </button>
-            </form>
-          </div>
+
+                {/* Name & Email Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Full Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={candidateName}
+                      onChange={(e) => setCandidateName(e.target.value)}
+                      placeholder="e.g. Alex Morgan"
+                      className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Work Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={candidateEmail}
+                      onChange={(e) => setCandidateEmail(e.target.value)}
+                      placeholder="e.g. alex@example.com"
+                      className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* GitHub Profile Field */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    GitHub Handle or Profile URL (Optional)
+                  </label>
+                  <div className="relative flex items-center">
+                    <Github size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      placeholder="github.com/username or @username"
+                      className="w-full h-9 border border-slate-200 rounded-lg pl-8.5 pr-3 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-colors bg-white font-mono text-xs"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    AI screening analyzes repo architecture, commit velocity, and language proficiency.
+                  </p>
+                </div>
+
+                {/* PDF Resume Dropzone */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Resume / CV (PDF format) <span className="text-red-500">*</span>
+                  </label>
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border border-dashed rounded-lg p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                      isDragging
+                        ? "border-slate-900 bg-slate-100"
+                        : resumeFile
+                        ? "border-emerald-300 bg-emerald-50/40"
+                        : "border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    {resumeFile ? (
+                      <div className="flex items-center gap-2 text-emerald-800 font-medium text-xs">
+                        <FileText size={16} className="text-emerald-600" />
+                        <span className="font-semibold">{resumeFile.name}</span>
+                        <span className="text-emerald-600 font-normal">({(resumeFile.size / 1024).toFixed(0)} KB)</span>
+                        <span className="text-slate-400 ml-1 text-[11px] underline">Change file</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                          <Upload size={14} />
+                        </div>
+                        <p className="text-xs text-slate-700 font-medium">
+                          Click to upload resume <span className="text-slate-400 font-normal">or drag &amp; drop</span>
+                        </p>
+                        <p className="text-[10px] text-slate-400">PDF documents up to 10MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Submit Action Button */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full h-10 bg-slate-900 hover:bg-slate-800 active:bg-black text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Evaluating technical profile with AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={13} />
+                        <span>Submit Application</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-4 border-t border-slate-200 text-[11px] text-slate-400">
-        Careers at {effectiveCompanyName} • Powered by HireMind AI Candidate Intelligence
+      <footer className="text-center py-5 border-t border-slate-200/70 text-xs text-slate-400">
+        Careers at {effectiveCompanyName} • Powered by HireMind AI
       </footer>
     </div>
   );
