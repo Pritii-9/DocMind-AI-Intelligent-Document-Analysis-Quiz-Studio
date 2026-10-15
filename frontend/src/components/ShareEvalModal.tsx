@@ -18,7 +18,7 @@ interface ShareEvalModalProps {
 }
 
 export default function ShareEvalModal({ isOpen, onClose, candidate }: ShareEvalModalProps) {
-  const [duration, setDuration] = useState<number>(30); // 30 minutes default
+  const duration = 1440; // 24 hours standard
   const [shareUrl, setShareUrl] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -34,7 +34,7 @@ export default function ShareEvalModal({ isOpen, onClose, candidate }: ShareEval
           setLoading(false);
         });
     }
-  }, [isOpen, candidate, duration]);
+  }, [isOpen, candidate]);
 
   if (!isOpen || !candidate) return null;
 
@@ -57,8 +57,8 @@ export default function ShareEvalModal({ isOpen, onClose, candidate }: ShareEval
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center">
-              <Share2 size={16} />
+            <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center">
+              <Share2 size={15} />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-slate-900 leading-tight">
@@ -93,39 +93,11 @@ export default function ShareEvalModal({ isOpen, onClose, candidate }: ShareEval
             </span>
           </div>
 
-          {/* Duration Selector */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Clock size={13} className="text-slate-500" />
-              <span>Link Expiration Window</span>
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "30 Minutes", val: 30, tag: "Standard" },
-                { label: "2 Hours", val: 120, tag: "Interview" },
-                { label: "24 Hours", val: 1440, tag: "Executive" },
-              ].map((opt) => (
-                <button
-                  key={opt.val}
-                  type="button"
-                  onClick={() => setDuration(opt.val)}
-                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                    duration === opt.val
-                      ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-                  }`}
-                >
-                  <p className="text-xs font-semibold leading-tight">{opt.label}</p>
-                  <p
-                    className={`text-[10px] mt-0.5 ${
-                      duration === opt.val ? "text-slate-300" : "text-slate-400"
-                    }`}
-                  >
-                    {opt.tag}
-                  </p>
-                </button>
-              ))}
-            </div>
+          {/* 24-Hour Link Validity Badge */}
+          <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200/80 rounded-lg text-xs">
+            <Clock size={14} className="text-slate-500" />
+            <span className="font-semibold text-slate-800">24-Hour Review Window</span>
+            <span className="text-slate-400 ml-auto font-mono text-[11px]">Valid for 24h</span>
           </div>
 
           {/* Link Container */}
@@ -156,12 +128,12 @@ export default function ShareEvalModal({ isOpen, onClose, candidate }: ShareEval
           </div>
 
           {/* Privacy Note */}
-          <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg flex items-start gap-2 text-xs text-indigo-950 leading-relaxed">
-            <ShieldCheck size={16} className="text-indigo-600 shrink-0 mt-0.5" />
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex items-start gap-2.5 text-xs text-slate-700 leading-relaxed">
+            <ShieldCheck size={15} className="text-slate-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-slate-900">Zero-Login Recipient Access</p>
-              <p className="text-[11px] text-slate-600 mt-0.5">
-                Hiring managers and interviewers can view this full assessment and technical questions without an account. It automatically expires in {duration} minutes.
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Hiring managers and interviewers can view this full assessment and technical questions without an account. It automatically expires in 24 hours.
               </p>
             </div>
           </div>

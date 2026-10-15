@@ -11,7 +11,11 @@ import {
   Check,
   ShieldCheck,
   Table2,
+  Mail,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
+import api from "../api/client";
 import { useCompany, BRANDING_PRESETS } from "../context/CompanyContext";
 import { useToast } from "../context/ToastContext";
 import { getPublicApplyUrl, PRODUCTION_FRONTEND_URL } from "../utils/appUrl";
@@ -26,6 +30,10 @@ export default function SettingsTab() {
   const [companyWebsite, setCompanyWebsite] = useState(branding.websiteUrl);
   const [saving, setSaving] = useState(false);
   const [copiedApplyLink, setCopiedApplyLink] = useState(false);
+  const [defaultDispatchMode, setDefaultDispatchMode] = useState<"auto" | "manual">(() => {
+    return (localStorage.getItem("hiremind_email_dispatch_mode") as "auto" | "manual") || "manual";
+  });
+  const [testingEmail, setTestingEmail] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -76,7 +84,8 @@ export default function SettingsTab() {
         logoUrl: companyLogoUrl,
         websiteUrl: companyWebsite.trim(),
       });
-      toast.success("Settings & company branding saved successfully!");
+      localStorage.setItem("hiremind_email_dispatch_mode", defaultDispatchMode);
+      toast.success("Settings & configuration saved successfully!");
     } catch (e) {
       toast.error("Failed to save settings.");
     } finally {
@@ -90,7 +99,25 @@ export default function SettingsTab() {
     setCompanyTagline("Autonomous Tech Candidate Screening & Intelligence");
     setCompanyLogoUrl(null);
     setCompanyWebsite(PRODUCTION_FRONTEND_URL);
-    toast.info("Branding reset to default HireMind settings.");
+    setDefaultDispatchMode("manual");
+    localStorage.setItem("hiremind_email_dispatch_mode", "manual");
+    toast.info("Branding and dispatch policies reset to default.");
+  };
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    try {
+      const res = await api.post("/api/hire/test-email", {});
+      if (res.data?.status === "sent") {
+        toast.success(`Verification email delivered to ${res.data.target}!`);
+      } else {
+        toast.info(res.data?.message || "Test email processed.");
+      }
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || "Email verification failed. Check SMTP configuration.");
+    } finally {
+      setTestingEmail(false);
+    }
   };
 
   const handleCopyApply = () => {
@@ -100,20 +127,43 @@ export default function SettingsTab() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6 font-[Inter,system-ui,sans-serif]">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Workspace Settings</h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Customize company white-labeling, branding, logo, and candidate application portals.
-        </p>
+    <div className="px-6 py-5 max-w-7xl mx-auto space-y-3.5 font-[Inter,system-ui,sans-serif]">
+      {/* ── Page Header with Inline Save Controls ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
+        <div>
+          <h1 className="text-base font-bold tracking-tight text-slate-900 leading-tight">
+            Settings
+          </h1>
+          <p className="text-xs text-slate-500">
+            Company branding, white-labeling, application portal &amp; workspace configuration
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition shadow-2xs cursor-pointer"
+          >
+            <RotateCcw size={12} />
+            <span>Reset Defaults</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white transition shadow-xs cursor-pointer disabled:opacity-50"
+          >
+            <Save size={13} />
+            <span>{saving ? "Saving..." : "Save Settings"}</span>
+          </button>
+        </div>
       </div>
 
       {/* 1. Company & White-Labeling Card */}
       <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-5">
         <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-            <Building size={16} />
+          <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
+            <Building size={15} />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-slate-900">Company Identity &amp; Branding</h2>
@@ -223,7 +273,7 @@ export default function SettingsTab() {
         {/* Quick Presets */}
         <div>
           <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-            <Sparkles size={12} className="text-indigo-600" />
+            <Sparkles size={12} className="text-slate-500" />
             <span>Quick 1-Click Vendor Presets:</span>
           </label>
           <div className="flex flex-wrap gap-1.5">
@@ -359,6 +409,96 @@ export default function SettingsTab() {
         <div className="pt-2 flex items-center gap-2 text-xs text-slate-500">
           <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
           <span>All screening assessments and candidate scores are automatically encrypted and synchronized.</span>
+        </div>
+      </div>
+
+      {/* 3. Candidate Email Dispatch & Automation Policy */}
+      <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
+              <Mail size={15} />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Email Notification &amp; Dispatch Automation</h2>
+              <p className="text-xs text-slate-500">
+                Configure default dispatch behavior for candidate screening notifications and verify SMTP delivery.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleTestEmail}
+            disabled={testingEmail}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition shadow-2xs cursor-pointer disabled:opacity-50"
+          >
+            {testingEmail ? <Loader2 size={12} className="animate-spin text-slate-600" /> : <Mail size={12} className="text-slate-500" />}
+            <span>{testingEmail ? "Testing Delivery..." : "Test SMTP Delivery"}</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+          {/* Option: Manual Approval */}
+          <div
+            onClick={() => setDefaultDispatchMode("manual")}
+            className={`cursor-pointer rounded-lg border p-3.5 transition-all flex flex-col justify-between ${
+              defaultDispatchMode === "manual"
+                ? "border-slate-900 bg-slate-50/60 ring-1 ring-slate-900/10"
+                : "border-slate-200 hover:border-slate-300 bg-white"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+                  <CheckCircle2
+                    size={14}
+                    className={defaultDispatchMode === "manual" ? "text-slate-900" : "text-slate-300"}
+                  />
+                  Manual Recruiter Approval
+                </span>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                  Recommended
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                AI evaluation scores applicant resumes without sending emails. Recruiters review results first and click <strong className="text-slate-700 font-medium">"Send Shortlist Email"</strong> on demand.
+              </p>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center gap-1.5 text-[11px] text-slate-400">
+              <span>Zero risk of accidental email dispatches during test runs or tuning.</span>
+            </div>
+          </div>
+
+          {/* Option: Auto-Dispatch */}
+          <div
+            onClick={() => setDefaultDispatchMode("auto")}
+            className={`cursor-pointer rounded-lg border p-3.5 transition-all flex flex-col justify-between ${
+              defaultDispatchMode === "auto"
+                ? "border-slate-900 bg-slate-50/60 ring-1 ring-slate-900/10"
+                : "border-slate-200 hover:border-slate-300 bg-white"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+                  <CheckCircle2
+                    size={14}
+                    className={defaultDispatchMode === "auto" ? "text-slate-900" : "text-slate-300"}
+                  />
+                  Immediate Auto-Dispatch
+                </span>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                  High Volume
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                Automatically dispatches calendar booking invitations to shortlisted applicants as soon as AI analysis meets score thresholds.
+              </p>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center gap-1.5 text-[11px] text-slate-400">
+              <span>Optimized for fast-moving high-volume inbound pipelines.</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

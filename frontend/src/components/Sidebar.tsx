@@ -1,15 +1,15 @@
-import { Users, Briefcase, BriefcaseBusiness, Share2, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Briefcase, BriefcaseBusiness, Share2, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCompany } from "../context/CompanyContext";
 
 export type Tab = "pipeline" | "jobs" | "hire" | "apply" | "settings";
 
 const NAV: { id: Tab; label: string; icon: any }[] = [
-  { id: "pipeline", label: "Candidate Pipeline", icon: Users },
-  { id: "jobs",     label: "Job Openings",       icon: Briefcase },
-  { id: "hire",     label: "Quick Screen",       icon: BriefcaseBusiness },
-  { id: "apply",    label: "Public Apply Portal",icon: Share2 },
-  { id: "settings", label: "Settings",           icon: Settings },
+  { id: "pipeline", label: "Dashboard",        icon: LayoutDashboard },
+  { id: "jobs",     label: "Job Openings",     icon: Briefcase },
+  { id: "hire",     label: "Quick Screen",     icon: BriefcaseBusiness },
+  { id: "apply",    label: "Public Portal",    icon: Share2 },
+  { id: "settings", label: "Settings",         icon: Settings },
 ];
 
 interface SidebarProps {

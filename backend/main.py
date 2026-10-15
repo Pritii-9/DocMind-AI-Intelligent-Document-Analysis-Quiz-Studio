@@ -26,7 +26,11 @@ app = FastAPI(
 allowed_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 allowed_origins += [
     "http://localhost:5173",
+    "http://localhost:5174",
     "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
     "https://hiremind-ai-gules.vercel.app",
     "https://pdf-streaming.vercel.app",
 ]
@@ -34,6 +38,7 @@ allowed_origins += [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(set(allowed_origins)),
+    allow_origin_regex=r"^https?:\/\/.*(\.vercel\.app|localhost|127\.0\.0\.1)(:[0-9]+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

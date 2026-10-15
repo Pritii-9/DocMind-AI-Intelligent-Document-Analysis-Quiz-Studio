@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     MAIL_PASSWORD: str = ""
 
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:5173,https://hiremind-ai-gules.vercel.app,https://pdf-streaming.vercel.app"
 
     # AI
     AI_AUTO_INGEST_UPLOADS: bool = True

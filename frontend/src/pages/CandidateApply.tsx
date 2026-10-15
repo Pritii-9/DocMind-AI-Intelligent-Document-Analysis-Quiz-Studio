@@ -29,10 +29,24 @@ export default function CandidateApply() {
   const [githubUrl, setGithubUrl] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [spinUpSeconds, setSpinUpSeconds] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let timer: any;
+    if (submitting) {
+      setSpinUpSeconds(0);
+      timer = setInterval(() => {
+        setSpinUpSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      setSpinUpSeconds(0);
+    }
+    return () => clearInterval(timer);
+  }, [submitting]);
 
   useEffect(() => {
     const list = getJobOpenings().filter((j) => j.status === "active");
@@ -148,6 +162,10 @@ export default function CandidateApply() {
       formData.append("job_description", targetJd);
       formData.append("github_username", ghUser);
       formData.append("resume_file", resumeFile);
+      formData.append("candidate_name", trimmedName);
+      formData.append("candidate_email", trimmedEmail);
+      formData.append("role_title", activeJob?.title || "Software Engineer");
+      formData.append("send_email", "true");
 
       // 1. Screen candidate via AI pipeline
       const screenRes = await api.post("/api/hire/screen", formData, {
@@ -155,16 +173,26 @@ export default function CandidateApply() {
       });
       const data = screenRes.data;
 
-      // 2. Generate questions
+      // 2. Senior Dev Fast-Fail: Only skip questions if score < 70 or explicit experience gap status
+      const s = data.screening;
+      const isSevereExpGap =
+        Boolean(s?.short_circuited) ||
+        s?.experience_check?.status === "Under" ||
+        (s?.score !== undefined && s?.score < 70);
+
       let questions: any[] = [];
-      try {
-        const qRes = await api.post("/api/hire/generate-questions", {
-          resume_text: data.resume_text_preview || "Technical candidate resume",
-          jd: targetJd,
-        });
-        questions = qRes.data.questions || [];
-      } catch (err) {
-        console.warn("Questions generation skipped:", err);
+      if (!isSevereExpGap) {
+        try {
+          const qRes = await api.post("/api/hire/generate-questions", {
+            resume_text: data.resume_text_preview || "Technical candidate resume",
+            jd: targetJd,
+          });
+          questions = qRes.data.questions || [];
+        } catch (err) {
+          console.warn("Questions generation skipped:", err);
+        }
+      } else {
+        console.info("[HireMind Fast-Fail] Technical question generation bypassed due to experience gap.");
       }
 
       // 3. Log to Google Sheet with Company and Role tagging
@@ -193,6 +221,12 @@ export default function CandidateApply() {
           skills: data.screening?.skills_found || [],
           recommendation: data.screening?.recommendation || "Under Review",
           reason: data.screening?.reason || "",
+          experience_check: data.screening?.experience_check,
+          what_they_want: data.screening?.what_they_want,
+          what_candidate_has: data.screening?.what_candidate_has,
+          requirements_breakdown: data.screening?.requirements_breakdown,
+          short_circuited: data.screening?.short_circuited,
+          fast_fail_reason: data.screening?.fast_fail_reason,
           questions: questions,
           appliedAt: new Date().toISOString(),
           github_data: data.github_data,
@@ -451,8 +485,8 @@ export default function CandidateApply() {
                   </div>
                 </div>
 
-                {/* Submit Action Button */}
-                <div className="pt-2">
+                {/* Submit Action Button & Spin-up Progress */}
+                <div className="pt-2 space-y-3">
                   <button
                     type="submit"
                     disabled={submitting}
@@ -461,7 +495,11 @@ export default function CandidateApply() {
                     {submitting ? (
                       <>
                         <Loader2 size={14} className="animate-spin" />
-                        <span>Evaluating technical profile with AI...</span>
+                        <span>
+                          {spinUpSeconds >= 3
+                            ? `Evaluating with AI (${spinUpSeconds}s)...`
+                            : "Evaluating technical profile with AI..."}
+                        </span>
                       </>
                     ) : (
                       <>
@@ -470,6 +508,39 @@ export default function CandidateApply() {
                       </>
                     )}
                   </button>
+                  <p className="text-[11px] text-slate-500 text-center font-medium">
+                    Render Cloud: Live automated screening completes in ~15–20 seconds
+                  </p>
+
+                  {/* Cloud AI Engine Spin-Up Progress Notice */}
+                  {submitting && (
+                    <div className="p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-xl space-y-2 text-amber-900 animate-fadeIn">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className="flex items-center gap-2">
+                          <Loader2 size={13} className="animate-spin text-amber-600 shrink-0" />
+                          <span>
+                            {spinUpSeconds >= 3
+                              ? "Cloud AI Engine Evaluating (Render Free-Tier)..."
+                              : "Ingesting resume & preparing evaluation pipeline..."}
+                          </span>
+                        </span>
+                        <span className="font-mono text-[11px] text-amber-800 bg-white border border-amber-200 px-2 py-0.5 rounded-md">
+                          {spinUpSeconds}s / ~20s
+                        </span>
+                      </div>
+                      <div className="w-full bg-amber-200/60 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-amber-600 h-full transition-all duration-1000 ease-out rounded-full"
+                          style={{ width: `${Math.min(95, Math.max(8, (spinUpSeconds / 20) * 100))}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                        {spinUpSeconds >= 3
+                          ? "Render cloud instances process resume evaluation live in ~15–20 seconds. Please hold on — your application is finalizing."
+                          : "Extracting skills, validating GitHub repositories, and matching with role requirements..."}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </form>
             </div>

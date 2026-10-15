@@ -19,13 +19,21 @@ export default function ShareableApplyTab() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6 font-[Inter,system-ui,sans-serif]">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Application Portal</h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Candidate ingestion and public application link for <strong className="text-slate-800">{branding.name}</strong>
-        </p>
+    <div className="px-6 py-5 max-w-7xl mx-auto space-y-3.5 font-[Inter,system-ui,sans-serif]">
+      {/* ── Page Header with Status Capsule ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
+        <div>
+          <h1 className="text-base font-bold tracking-tight text-slate-900 leading-tight">
+            Public Apply Portal
+          </h1>
+          <p className="text-xs text-slate-500">
+            Candidate ingestion and public application link for <strong className="text-slate-700">{branding.name}</strong>
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-lg shadow-2xs">
+          <ShieldCheck size={13} className="text-emerald-600" />
+          <span>Status: <strong className="text-slate-900 font-semibold">Active &amp; Accepting Candidates</strong></span>
+        </div>
       </div>
 
       {/* Clean Card */}

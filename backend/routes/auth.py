@@ -293,15 +293,18 @@ def update_profile(body: UpdateProfileIn, user: dict = Depends(get_current_user)
 @router.get("/branding")
 def get_branding():
     """Public endpoint to fetch company branding for workspace and apply portal."""
-    db = get_db()
-    doc = db.workspace_branding.find_one({"_id": "default"})
-    if doc:
-        return {
-            "name": doc.get("name", "HireMind AI"),
-            "tagline": doc.get("tagline", "Autonomous Tech Candidate Screening & Intelligence"),
-            "logo_url": doc.get("logo_url"),
-            "website_url": doc.get("website_url", ""),
-        }
+    try:
+        db = get_db()
+        doc = db.workspace_branding.find_one({"_id": "default"})
+        if doc:
+            return {
+                "name": doc.get("name", "HireMind AI"),
+                "tagline": doc.get("tagline", "Autonomous Tech Candidate Screening & Intelligence"),
+                "logo_url": doc.get("logo_url"),
+                "website_url": doc.get("website_url", ""),
+            }
+    except Exception:
+        pass
     return {
         "name": "HireMind AI",
         "tagline": "Autonomous Tech Candidate Screening & Intelligence",

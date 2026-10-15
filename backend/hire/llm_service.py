@@ -98,6 +98,10 @@ RESUME TEXT:
 GITHUB DATA:
 {github_data}
 
+EXPERIENCE & REQUIREMENTS ASSESSMENT:
+Compare candidate's actual years of experience and core skills directly with the job description requirements.
+Flag experience fit upfront (Meets, Exceeds, Under, or Unspecified).
+
 Score the candidate 0-100 where:
 - 90-100: Exceptional fit, immediate shortlist
 - 70-89:  Strong candidate, worth interviewing
@@ -107,6 +111,19 @@ Score the candidate 0-100 where:
 Return ONLY this JSON:
 {{
   "score": <integer 0-100>,
+  "experience_check": {{
+    "required_years": "<e.g. 3+ years or 5+ years or Not specified>",
+    "candidate_years": "<e.g. 4 years or 1.5 years or Fresh Graduate>",
+    "status": "<one of: Meets | Exceeds | Under | Unspecified>",
+    "verdict": "<short 1-sentence verdict e.g. Meets requirement: 4 yrs found vs 3+ yrs required>"
+  }},
+  "what_they_want": "<1 short sentence summarizing role's primary must-haves>",
+  "what_candidate_has": "<1 short sentence summarizing candidate's actual experience and core stack>",
+  "requirements_breakdown": [
+    {{"requirement": "<must-have skill/exp from JD>", "candidate_match": "<what candidate has>", "status": "<match | partial | missing>"}},
+    {{"requirement": "<must-have skill/exp from JD>", "candidate_match": "<what candidate has>", "status": "<match | partial | missing>"}},
+    {{"requirement": "<must-have skill/exp from JD>", "candidate_match": "<what candidate has>", "status": "<match | partial | missing>"}}
+  ],
   "reason": "<2-3 sentence explanation of score including strengths and gaps>",
   "shortlist": <true if score >= 70, else false>,
   "skills_found": ["<skill1>", "<skill2>", "..."],
@@ -152,6 +169,29 @@ def screen_candidate(jd: str, resume_text: str, github_data: dict) -> dict:
             result = json.loads(match.group(0))
         else:
             raise ValueError(f"LLM returned non-JSON screening result: {e}\nRaw: {raw[:300]}")
+
+    # ── Senior Dev Short-Circuit / Fast-Fail Optimization ────────────────────
+    # If candidate experience has a severe gap (e.g. internships vs 3+ yrs senior req),
+    # short-circuit screening to save recruiter time and LLM compute.
+    exp_info = result.get("experience_check") or {}
+    exp_status = exp_info.get("status", "")
+    reason_lower = (result.get("reason") or "").lower()
+
+    is_severe_gap = (
+        exp_status.lower() in {"under", "unspecified"} or
+        bool(re.search(r"internship|academic|student|lack\w*\s+.*(?:senior|3\+|experience)|not\s+a\s+fit|gap|entry|fresher|limited to", reason_lower))
+    )
+
+    if is_severe_gap and result.get("score", 100) < 70:
+        result["short_circuited"] = True
+        result["score"] = min(result.get("score", 50), 55)
+        result["shortlist"] = False
+        result["recommendation"] = "Not a Fit (Experience Gap)"
+        result["fast_fail_reason"] = (
+            "Minimum commercial experience threshold not met for this senior opening. "
+            "Candidate background is focused on internships/academic work. "
+            "Technical screening questions bypassed to save engineering interview bandwidth."
+        )
 
     return result
 

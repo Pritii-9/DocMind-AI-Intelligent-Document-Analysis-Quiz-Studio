@@ -9,14 +9,14 @@ export interface ShareEvalResult {
 }
 
 /**
- * Creates a secure, time-bound candidate evaluation link (default: 30 minutes).
+ * Creates a secure, time-bound candidate evaluation link (standard: 24 hours).
  * Features automatic dual-mode:
  * 1. Server-backed link: /eval?id={eval_id}
  * 2. Instant client-encoded token fallback: /eval?token={jwt/base64} for zero-cold-start reliability.
  */
 export async function createShareableEvalLink(
   candidateData: any,
-  durationMinutes: number = 30
+  durationMinutes: number = 1440 // 24 hours default
 ): Promise<ShareEvalResult> {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const isLocal = !origin || origin.includes("localhost") || origin.includes("127.0.0.1");
@@ -24,8 +24,7 @@ export async function createShareableEvalLink(
 
   const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
 
-  // Fallback token encoding
-  const encodePayload = () => {
+  const b64Token = (() => {
     try {
       const payload = {
         candidate: candidateData,
@@ -33,11 +32,16 @@ export async function createShareableEvalLink(
         duration: durationMinutes,
       };
       const jsonStr = JSON.stringify(payload);
-      const b64 = btoa(encodeURIComponent(jsonStr));
-      return `${baseUrl}/eval?token=${encodeURIComponent(b64)}`;
+      return encodeURIComponent(btoa(encodeURIComponent(jsonStr)));
     } catch (e) {
-      return `${baseUrl}/eval?duration=${durationMinutes}`;
+      return "";
     }
+  })();
+
+  const encodePayload = () => {
+    return b64Token
+      ? `${baseUrl}/eval?token=${b64Token}`
+      : `${baseUrl}/eval?duration=${durationMinutes}`;
   };
 
   try {
@@ -47,8 +51,11 @@ export async function createShareableEvalLink(
     });
 
     if (res.data?.eval_id) {
+      const shareUrl = b64Token
+        ? `${baseUrl}/eval?id=${res.data.eval_id}&token=${b64Token}`
+        : `${baseUrl}/eval?id=${res.data.eval_id}`;
       return {
-        shareUrl: `${baseUrl}/eval?id=${res.data.eval_id}`,
+        shareUrl,
         evalId: res.data.eval_id,
         durationMinutes,
         expiresAt: new Date(res.data.expires_at || expiresAt),

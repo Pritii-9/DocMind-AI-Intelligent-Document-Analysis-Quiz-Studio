@@ -14,11 +14,11 @@ import SettingsTab from "../components/SettingsTab";
 import type { JobOpening } from "../utils/jobStorage";
 
 const TAB_TITLES: Record<Tab, string> = {
-  pipeline: "Candidate Pipeline (ATS)",
-  jobs:     "Job Openings & Requisitions",
-  hire:     "Quick Screen — On-Demand Evaluation",
+  pipeline: "Dashboard",
+  jobs:     "Job Openings",
+  hire:     "Quick Screen",
   apply:    "Public Apply Portal",
-  settings: "Workspace & Company Settings",
+  settings: "Settings",
 };
 
 export default function Workspace() {

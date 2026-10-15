@@ -1,20 +1,17 @@
 import { useState, useEffect } from "react";
 import {
   Clock,
-  AlertTriangle,
   Github,
   Mail,
   Copy,
   Check,
   Building2,
-  Code2,
-  Database,
-  Layers,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import api from "../api/client";
 import { decodeClientEvalToken } from "../utils/shareEval";
+import ExperienceCheckCard from "../components/ExperienceCheckCard";
+import TechQuestionCard from "../components/TechQuestionCard";
+import { resolveExperienceDetails } from "../utils/experienceParser";
 
 interface QuestionItem {
   category?: string;
@@ -34,19 +31,23 @@ interface CandidateEvalData {
   skills?: string[];
   recommendation?: string;
   reason?: string;
+  experience_check?: any;
+  what_they_want?: string;
+  what_candidate_has?: string;
+  requirements_breakdown?: any[];
   questions?: QuestionItem[];
   github_data?: any;
   appliedAt?: string;
+  short_circuited?: boolean;
 }
 
 export default function SharedEvalReport() {
   const [candidate, setCandidate] = useState<CandidateEvalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expired, setExpired] = useState(false);
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(1800); // 30 min default
-  const [durationMinutes, setDurationMinutes] = useState<number>(30);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(86400); // 24 hours default
+  const [durationMinutes, setDurationMinutes] = useState<number>(1440); // 24 hours
   const [copied, setCopied] = useState(false);
-  const [openQuestionIndex, setOpenQuestionIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -82,8 +83,8 @@ export default function SharedEvalReport() {
           }
           if (res.data?.candidate) {
             setCandidate(res.data.candidate);
-            setSecondsRemaining(res.data.seconds_remaining || 1800);
-            setDurationMinutes(res.data.duration_minutes || 30);
+            setSecondsRemaining(res.data.seconds_remaining || 86400);
+            setDurationMinutes(res.data.duration_minutes || 1440);
             setLoading(false);
             return;
           }
@@ -99,7 +100,8 @@ export default function SharedEvalReport() {
           const list = JSON.parse(stored);
           if (list.length > 0) {
             setCandidate(list[0]);
-            setSecondsRemaining(1800);
+            setSecondsRemaining(86400);
+            setDurationMinutes(1440);
             setLoading(false);
             return;
           }
@@ -129,12 +131,6 @@ export default function SharedEvalReport() {
     return () => clearInterval(interval);
   }, [expired, secondsRemaining]);
 
-  const formatCountdown = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}m ${s < 10 ? "0" : ""}${s}s`;
-  };
-
   const handleCopySummary = () => {
     if (!candidate) return;
     const text = `Candidate Evaluation: ${candidate.name}
@@ -147,22 +143,6 @@ Rationale: ${candidate.reason || "N/A"}`;
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const scoreBadge = (score: number) => {
-    if (score >= 80) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    if (score >= 60) return "bg-amber-50 text-amber-700 border-amber-200";
-    return "bg-slate-100 text-slate-700 border-slate-200";
-  };
-
-  const categoryIcon = (cat?: string) => {
-    const lower = (cat || "").toLowerCase();
-    if (lower.includes("sql") || lower.includes("database")) {
-      return <Database size={15} className="text-amber-600" />;
-    }
-    if (lower.includes("system") || lower.includes("design") || lower.includes("architecture")) {
-      return <Layers size={15} className="text-indigo-600" />;
-    }
-    return <Code2 size={15} className="text-emerald-600" />;
-  };
 
   if (loading) {
     return (
@@ -227,10 +207,18 @@ Rationale: ${candidate.reason || "N/A"}`;
     },
   ];
 
+  const exp = resolveExperienceDetails(candidate, candidate.role);
+  const isExpGap =
+    candidate.score < 70 ||
+    exp.status === "Under" ||
+    Boolean(candidate.short_circuited);
+
   const questions =
-    candidate.questions && candidate.questions.length > 0
+    !isExpGap && candidate.questions && candidate.questions.length > 0
       ? candidate.questions
-      : defaultQuestions;
+      : !isExpGap
+      ? defaultQuestions
+      : [];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-[Inter,system-ui,sans-serif]">
@@ -250,9 +238,9 @@ Rationale: ${candidate.reason || "N/A"}`;
 
         {/* Live Countdown Badge */}
         <div className="flex items-center gap-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
-            <Clock size={13} className="text-amber-600 animate-pulse" />
-            <span>Expires in: {formatCountdown(secondsRemaining)}</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+            <Clock size={13} className="text-emerald-600" />
+            <span>Valid for 24 Hours</span>
           </div>
           <button
             type="button"
@@ -271,19 +259,22 @@ Rationale: ${candidate.reason || "N/A"}`;
         <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div
-                className={`w-14 h-14 rounded-xl flex items-center justify-center font-extrabold text-base border shrink-0 ${scoreBadge(
-                  candidate.score
-                )}`}
-              >
-                {candidate.score}/100
+              <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center shrink-0">
+                <span className="text-2xl font-bold tracking-tight text-slate-900 leading-none">{candidate.score}</span>
+                <span className="text-[11px] text-slate-400 font-medium mt-1">/ 100</span>
               </div>
               <div>
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-xl font-bold text-slate-900">{candidate.name}</h2>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    {candidate.recommendation || "Recommended"}
-                  </span>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900">{candidate.name}</h2>
+                  {isExpGap ? (
+                    <span className="px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-50/70 text-amber-800 border border-amber-200/80">
+                      Exp Mismatch (Junior Tier)
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-50/70 text-emerald-800 border border-emerald-200/80">
+                      {candidate.recommendation || "Shortlisted"}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
                   <span className="font-medium text-slate-700 flex items-center gap-1">
@@ -320,15 +311,8 @@ Rationale: ${candidate.reason || "N/A"}`;
             </div>
           </div>
 
-          {/* AI Screening Assessment Rationale */}
-          {candidate.reason && (
-            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                AI Screening Evaluation
-              </p>
-              <p className="text-xs text-slate-700 leading-relaxed">{candidate.reason}</p>
-            </div>
-          )}
+          {/* Experience & Requirements Assessment: FLAGGED FIRST THING! */}
+          <ExperienceCheckCard candidate={candidate} defaultJobTitle={candidate.role} />
 
           {/* Verified Technical Skills */}
           {candidate.skills && candidate.skills.length > 0 && (
@@ -350,83 +334,31 @@ Rationale: ${candidate.reason || "N/A"}`;
           )}
         </div>
 
-        {/* Tailored Technical Screening Questions Card */}
-        <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Tailored Technical Screening Questions
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Targeted questions generated from the candidate's resume, covering Language Fundamentals, SQL, and System Design.
-              </p>
+        {/* Tailored Technical Screening Questions Card (ONLY if candidate meets experience criteria) */}
+        {!isExpGap && questions.length > 0 && (
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Tailored Technical Screening Questions
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Targeted questions generated from the candidate's resume, covering Language Fundamentals, SQL, and System Design.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                {questions.length} Questions
+              </span>
             </div>
-            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-              3 Questions
-            </span>
+
+            {/* Questions Accordion / List */}
+            <div className="space-y-3">
+              {questions.map((q, idx) => (
+                <TechQuestionCard key={idx} question={q} index={idx} />
+              ))}
+            </div>
           </div>
-
-          {/* Questions Accordion / List */}
-          <div className="space-y-3">
-            {questions.map((q, idx) => {
-              const isOpen = openQuestionIndex === idx;
-              return (
-                <div
-                  key={idx}
-                  className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                      <div className="mt-0.5 shrink-0">{categoryIcon(q.category || q.topic)}</div>
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            {q.category || "Technical Competency"}
-                          </span>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-[11px] font-medium text-slate-600">
-                            {q.topic || "Core Knowledge"}
-                          </span>
-                          {q.difficulty && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-white border border-slate-200 text-slate-700">
-                              {q.difficulty}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs font-semibold text-slate-900 leading-snug">
-                          {q.question}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setOpenQuestionIndex(isOpen ? null : idx)}
-                      className="text-xs text-slate-500 hover:text-slate-900 font-medium inline-flex items-center gap-1 cursor-pointer shrink-0"
-                    >
-                      <span>Criteria</span>
-                      {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                    </button>
-                  </div>
-
-                  {/* Expandable Evaluation Criteria Hint */}
-                  {isOpen && (
-                    <div className="mt-3 pt-3 border-t border-slate-200 text-xs bg-white p-3 rounded-lg border border-slate-200/80">
-                      <p className="font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                        <AlertTriangle size={12} className="text-amber-500" />
-                        <span>What to Look for in Candidate's Response:</span>
-                      </p>
-                      <p className="text-slate-600 leading-relaxed text-[11px]">
-                        {q.evaluation_criteria ||
-                          "Look for precise technical terminology, awareness of memory and performance tradeoffs, and architectural decision rationale."}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        )}
 
         {/* GitHub Intelligence Block (if available) */}
         {candidate.github_data && candidate.github_data.top_languages && (

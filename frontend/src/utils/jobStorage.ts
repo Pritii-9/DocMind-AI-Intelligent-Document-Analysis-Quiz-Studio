@@ -11,6 +11,22 @@ export interface JobOpening {
 
 export const DEFAULT_JOBS: JobOpening[] = [
   {
+    id: "job-jr-ai-fullstack",
+    title: "Associate Full-Stack AI Developer",
+    department: "AI & Innovation",
+    experience: "0-2 years (Entry / Early Career)",
+    skills: ["Python", "FastAPI", "React", "TypeScript", "PostgreSQL", "Docker", "RAG", "LLM APIs"],
+    description: `We are hiring an Associate / Junior Full-Stack AI Developer to build cutting-edge LLM-powered applications and web telemetry systems.
+Key Requirements:
+- Hands-on experience building full-stack applications with Python (FastAPI) and React / TypeScript.
+- Working knowledge of relational databases (PostgreSQL), Redis Streams, and Docker containerization.
+- Experience with Generative AI, LLM APIs (Groq / OpenAI), LangChain, and RAG pipelines.
+- Demonstrated portfolio of shipped projects with clean Git commits and CI/CD pipelines.
+- 0-2 years experience (Fresh graduates with strong internship and project background are highly encouraged to apply).`,
+    status: "active",
+    createdAt: new Date().toISOString(),
+  },
+  {
     id: "job-backend-eng",
     title: "Senior Backend Engineer",
     department: "Engineering",

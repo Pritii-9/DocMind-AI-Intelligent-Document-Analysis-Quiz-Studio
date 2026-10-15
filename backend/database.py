@@ -33,6 +33,12 @@ class PostgresDatabase:
         self.embeddings = PostgresCollection(self, "embeddings")
         self.chat_history = PostgresCollection(self, "chat_history")
         self.quizzes = PostgresCollection(self, "quizzes")
+        self.workspace_branding = PostgresCollection(self, "workspace_branding")
+
+    def __getattr__(self, name: str) -> "PostgresCollection":
+        col = PostgresCollection(self, name)
+        setattr(self, name, col)
+        return col
 
     def get_conn(self):
         return self.pool.getconn()
@@ -129,6 +135,27 @@ class PostgresDatabase:
                         created_at TIMESTAMPTZ
                     );
                 """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS workspace_branding (
+                        id VARCHAR(64) PRIMARY KEY,
+                        name VARCHAR(255),
+                        tagline VARCHAR(500),
+                        logo_url TEXT,
+                        website_url VARCHAR(500),
+                        updated_by VARCHAR(255),
+                        updated_at TIMESTAMPTZ
+                    );
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS shared_evals (
+                        id VARCHAR(64) PRIMARY KEY,
+                        candidate JSONB NOT NULL,
+                        duration_minutes INT DEFAULT 1440,
+                        created_at TIMESTAMPTZ,
+                        expires_at TIMESTAMPTZ,
+                        expires_at_epoch BIGINT
+                    );
+                """)
                 conn.commit()
         finally:
             self.put_conn(conn)
@@ -166,7 +193,7 @@ class PostgresCollection:
         if "id" in d:
             d["_id"] = d["id"]
         # Parse JSONB fields
-        for json_col in ["ai_tags", "questions", "attempts", "last_score"]:
+        for json_col in ["ai_tags", "questions", "attempts", "last_score", "candidate"]:
             if json_col in d and isinstance(d[json_col], str):
                 try:
                     d[json_col] = json.loads(d[json_col])
@@ -227,6 +254,14 @@ class PostgresCollection:
                 cur.execute(sql, params)
                 row = cur.fetchone()
                 return self._convert_row(row)
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            if "does not exist" in str(e).lower():
+                return None
+            raise e
         finally:
             self.db.put_conn(conn)
 
@@ -241,6 +276,14 @@ class PostgresCollection:
                 rows = cur.fetchall()
                 converted = [self._convert_row(r) for r in rows]
                 return PostgresCursor(converted)
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            if "does not exist" in str(e).lower():
+                return PostgresCursor([])
+            raise e
         finally:
             self.db.put_conn(conn)
 
